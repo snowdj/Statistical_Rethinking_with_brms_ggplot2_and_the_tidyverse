@@ -56,10 +56,9 @@ d %>%
   geom_text_repel(data = d %>% filter(Loc %in% c("ME", "OK", "AR", "AL", "GA", "SC", "NJ")),  
                   aes(label = Loc), 
                   size = 3, seed = 1042) +  # this makes it reproducible
-  scale_x_continuous(limits = c(0, 55)) +
+  scale_x_continuous("Waffle Houses per million", limits = c(0, 55)) +
   coord_cartesian(xlim = 0:50, ylim = 5:15) +
-  labs(x = "Waffle Houses per million", 
-       y = "Divorce rate") +
+  ylab("Divorce rate") +
   theme_bw() +
   theme(panel.grid = element_blank())  
 ```
@@ -108,17 +107,18 @@ d <-
 
 Now we're ready to fit the first univariable model.
 
-```{r b5.1, cache = T, message = F, warning = F}
+```{r b5.1_, cache = T, message = F, warning = F}
 b5.1 <- 
   brm(data = d, family = gaussian,
       Divorce ~ 1 + MedianAgeMarriage_s,
       prior = c(prior(normal(10, 10), class = Intercept),
                 prior(normal(0, 1), class = b),
                 prior(uniform(0, 10), class = sigma)),
-      iter = 2000, warmup = 500, chains = 4, cores = 4)
+      iter = 2000, warmup = 500, chains = 4, cores = 4,
+      seed = 5)
 ```
 
-The summary:
+Check the summary.
 
 ```{r}
 print(b5.1)
@@ -127,25 +127,26 @@ print(b5.1)
 We'll employ `fitted()` to make Figure 5.2.b. In preparation for `fitted()` we'll make a new tibble, `nd`, composed of a handful of densely-packed values for our predictor, `MedianAgeMarriage_s`. With the `newdata` argument, we'll use those values to return model-implied expected values for `Divorce`.
 
 ```{r, fig.width = 3, fig.height = 3}
-# Determine the range of `MedianAgeMarriage_s` values we'd like to feed into `fitted()`
+# define the range of `MedianAgeMarriage_s` values we'd like to feed into `fitted()`
 nd <- tibble(MedianAgeMarriage_s = seq(from = -3, to = 3.5, length.out = 30))
 
-# Now use `fitted()` to get the model-implied trajectories
-fitd_b5.1 <- 
+# now use `fitted()` to get the model-implied trajectories
+f <- 
   fitted(b5.1, newdata = nd) %>%
   as_tibble() %>%
+  # tack the `nd` data onto the `fitted()` results
   bind_cols(nd)
 
-# Plot
-ggplot(data = fitd_b5.1, 
+# plot
+ggplot(data = f, 
        aes(x = MedianAgeMarriage_s, y = Estimate)) +
-  geom_ribbon(aes(ymin = Q2.5, ymax = Q97.5),
-              fill = "firebrick", alpha = 1/5) +
-  geom_line(color = "firebrick4") +
+  geom_smooth(aes(ymin = Q2.5, ymax = Q97.5),
+              stat = "identity",
+              fill = "firebrick", color = "firebrick4", alpha = 1/5, size = 1/4) +
   geom_point(data = d, 
-             aes(x = MedianAgeMarriage_s, y = Divorce), 
+             aes(y = Divorce), 
              size = 2, color = "firebrick4") +
-  labs(y = "Divorce") +
+  ylab("Divorce") +
   coord_cartesian(xlim = range(d$MedianAgeMarriage_s), 
                   ylim = range(d$Divorce)) +
   theme_bw() +
@@ -162,14 +163,15 @@ d <-
 
 We're ready to fit our second univariable model.
 
-```{r b5.2, cache = T, message = F, warning = F}
+```{r b5.2_, cache = T, message = F, warning = F}
 b5.2 <- 
   brm(data = d, family = gaussian,
       Divorce ~ 1 + Marriage_s,
       prior = c(prior(normal(10, 10), class = Intercept),
                 prior(normal(0, 1), class = b),
                 prior(uniform(0, 10), class = sigma)),
-      iter = 2000, warmup = 500, chains = 4, cores = 4)
+      iter = 2000, warmup = 500, chains = 4, cores = 4,
+      seed = 5)
 ```
 
 ```{r}
@@ -181,22 +183,22 @@ Now we'll wangle and plot our version of Figure 5.2.a.
 ```{r, fig.width = 3, fig.height = 3}
 nd <- tibble(Marriage_s = seq(from = -2.5, to = 3.5, length.out = 30))
 
-fitd_b5.2 <- 
+f <- 
   fitted(b5.2, newdata = nd) %>%
   as_tibble() %>%
   bind_cols(nd)
 
-ggplot(data = fitd_b5.2, 
+ggplot(data = f, 
        aes(x = Marriage_s, y = Estimate)) +
-  geom_ribbon(aes(ymin = Q2.5, ymax = Q97.5),
-              fill = "firebrick", alpha = 1/5) +
-  geom_line(color = "firebrick4") +
+  geom_smooth(aes(ymin = Q2.5, ymax = Q97.5),
+              stat = "identity",
+              fill = "firebrick", color = "firebrick4", alpha = 1/5, size = 1/4) +
   geom_point(data = d, 
-             aes(x = Marriage_s, y = Divorce), 
+             aes(y = Divorce), 
              size = 2, color = "firebrick4") +
   coord_cartesian(xlim = range(d$Marriage_s), 
                   ylim = range(d$Divorce)) +
-  labs(y = "Divorce") +
+  ylab("Divorce") +
   theme_bw() +
   theme(panel.grid = element_blank())                   
 ```
@@ -209,16 +211,14 @@ ggplot(data = fitd_b5.2,
 
 Now we'll get both predictors in there with our very first multivariable model. We can write the statistical model as
 
-$$
-\begin{eqnarray}
-\text{Divorce}_i & \sim & \text{Normal}(\mu_i, \sigma) \\
-\mu_i & = & \alpha + \beta_1 \text{Marriage_s}_i + \beta_2 \text{MedianAgeMarriage_s}_i \\
-\alpha & \sim & \text{Normal}(10, 10) \\
-\beta_1 & \sim & \text{Normal}(0, 1) \\
-\beta_2 & \sim & \text{Normal}(0, 1) \\
-\sigma & \sim & \text{Uniform}(0, 10)
-\end{eqnarray}
-$$
+\begin{align*}
+\text{Divorce}_i & \sim \text{Normal}(\mu_i, \sigma) \\
+\mu_i   & = \alpha + \beta_1 \text{Marriage_s}_i + \beta_2 \text{MedianAgeMarriage_s}_i \\
+\alpha  & \sim \text{Normal}(10, 10) \\
+\beta_1 & \sim \text{Normal}(0, 1) \\
+\beta_2 & \sim \text{Normal}(0, 1) \\
+\sigma  & \sim \text{Uniform}(0, 10)
+\end{align*}
 
 > It might help to read the $+$ symbols as "or" and then say: *A State’s divorce rate can be a function of its marriage rate **or** its median age at marriage*. The "or" indicates independent associations, which may be purely statistical or rather causal. (p. 124, *emphasis* in the original)
 
@@ -226,14 +226,15 @@ $$
 
 Much like we used the `+` operator to add single predictors to the intercept, we just use more `+` operators in the `formula` argument to add more predictors. Also notice we're using the same prior `prior(normal(0, 1), class = b)` for both predictors. Within the brms framework, they are both of `class = b`. But if we wanted their priors to differ, we'd make two `prior()` statements and differentiate them with the `coef` argument. You'll see examples of that later on.
 
-```{r b5.3, cache = T, message = F, warning = F}
+```{r b5.3_, cache = T, message = F, warning = F}
 b5.3 <- 
   brm(data = d, family = gaussian,
       Divorce ~ 1 + Marriage_s + MedianAgeMarriage_s,
       prior = c(prior(normal(10, 10), class = Intercept),
                 prior(normal(0, 1), class = b),
                 prior(uniform(0, 10), class = sigma)),
-      iter = 2000, warmup = 500, chains = 4, cores = 4)
+      iter = 2000, warmup = 500, chains = 4, cores = 4,
+      seed = 5)
 ```
 
 ```{r}
@@ -303,14 +304,15 @@ McElreath’s prose is delightfully deflationary. "There is a huge literature de
 
 To get ready to make our residual plots, we'll predict `Marriage_s` with `MedianAgeMarriage_s`.
 
-```{r b5.4, cache = T, message = F, warning = F}
+```{r b5.4_, cache = T, message = F, warning = F}
 b5.4 <- 
   brm(data = d, family = gaussian,
       Marriage_s ~ 1 + MedianAgeMarriage_s,
       prior = c(prior(normal(0, 10), class = Intercept),
                 prior(normal(0, 1), class = b),
                 prior(uniform(0, 10), class = sigma)),
-      iter = 2000, warmup = 500, chains = 4, cores = 4)
+      iter = 2000, warmup = 500, chains = 4, cores = 4,
+      seed = 5)
 ```
 
 ```{r}
@@ -320,18 +322,18 @@ print(b5.4)
 With `fitted()`, we compute the expected values for each state (with the exception of Nevada). Since the `MedianAgeMarriage_s` values for each state are in the date we used to fit the model, we’ll omit the `newdata` argument.
 
 ```{r}
-fitd_b5.4 <- 
+f <- 
   fitted(b5.4) %>%
   as_tibble() %>%
   bind_cols(d)
 
-head(fitd_b5.4)
+head(f)
 ```
 
 After a little data processing, we can make Figure 5.3.
 
 ```{r, fig.width = 3, fig.height = 3}
-fitd_b5.4 %>% 
+f %>% 
   
   ggplot(aes(x = MedianAgeMarriage_s, y = Marriage_s)) +
   geom_point(size = 2, shape = 1, color = "firebrick4") +
@@ -349,9 +351,9 @@ We get the residuals with the well-named `residuals()` function. Much like with 
 With our residuals in hand, we just need a little more data processing to make Figure 5.4.a.
 
 ```{r, fig.width = 3, fig.height = 3}
-res_b5.4 <- 
+r <- 
   residuals(b5.4) %>%
-  # To use this in ggplot2, we need to make it a tibble or data frame
+  # to use this in ggplot2, we need to make it a tibble or data frame
   as_tibble() %>% 
   bind_cols(d)
 
@@ -361,7 +363,8 @@ text <-
          Divorce = 14.1,
          label = c("slower", "faster"))
 
-res_b5.4 %>% 
+# plot
+r %>% 
   ggplot(aes(x = Estimate, y = Divorce)) +
   stat_smooth(method = "lm", fullrange = T,
               color = "firebrick4", fill = "firebrick4", 
@@ -370,24 +373,24 @@ res_b5.4 %>%
   geom_point(size = 2, color = "firebrick4", alpha = 2/3) +
   geom_text(data = text,
             aes(label = label)) +
-  scale_x_continuous(limits = c(-2, 2)) +
-  coord_cartesian(xlim = range(res_b5.4$Estimate),
+  scale_x_continuous("Marriage rate residuals", limits = c(-2, 2)) +
+  coord_cartesian(xlim = range(r$Estimate),
                   ylim = c(6, 14.1)) +
-  labs(x = "Marriage rate residuals") +
   theme_bw() +
   theme(panel.grid = element_blank())
 ```
 
 To get the `MedianAgeMarriage_s` residuals, we have to fit the corresponding model first.
 
-```{r b5.4b, cache = T, message = F, warning = F}
+```{r b5.4b., cache = T, message = F, warning = F}
 b5.4b <- 
   brm(data = d, family = gaussian,
       MedianAgeMarriage_s ~ 1 + Marriage_s,
       prior = c(prior(normal(0, 10), class = Intercept),
                 prior(normal(0, 1), class = b),
                 prior(uniform(0, 10), class = sigma)),
-      iter = 2000, warmup = 500, chains = 4, cores = 4)
+      iter = 2000, warmup = 500, chains = 4, cores = 4,
+      seed = 5)
 ```
 
 And now we'll get the new batch of residuals, do a little data processing, and make a plot corresponding to Figure 5.4.b.
@@ -410,10 +413,9 @@ residuals(b5.4b) %>%
   geom_point(size = 2, color = "firebrick4", alpha = 2/3) +
   geom_text(data = text,
             aes(label = label)) +
-  scale_x_continuous(limits = c(-2, 3)) +
-  coord_cartesian(xlim = range(res_b5.4$Estimate),
+  scale_x_continuous("Age of marriage residuals", limits = c(-2, 3)) +
+  coord_cartesian(xlim = range(r$Estimate),
                   ylim = c(6, 14.1)) +
-  labs(x = "Age of marriage residuals") +
   theme_bw() +
   theme(panel.grid = element_blank())  
 ```
@@ -425,34 +427,34 @@ residuals(b5.4b) %>%
 Making Figure 5.5.a requires a little more data wrangling than before.
 
 ```{r, fig.width = 3, fig.height = 3}
-# We need new `nd` data
+# we need new `nd` data
 nd <- 
   tibble(Marriage_s          = seq(from = -3, to = 3, length.out = 30),
-         MedianAgeMarriage_s = rep(mean(d$MedianAgeMarriage_s), times = 30))
-  
+         MedianAgeMarriage_s = mean(d$MedianAgeMarriage_s))
+
 fitted(b5.3, newdata = nd) %>% 
   as_tibble() %>% 
-  # Since `fitted()` and `predict()` name their intervals the same way, we'll need to
-  # `rename()` then to keep them straight.
+  # since `fitted()` and `predict()` name their intervals the same way, 
+  # we'll need to `rename()` them to keep them straight
   rename(f_ll = Q2.5,
          f_ul = Q97.5) %>% 
-  # Note how we're just nesting the `predict()` code right inside `bind_cols()`
+  # note how we're just nesting the `predict()` code right inside `bind_cols()`
   bind_cols(
     predict(b5.3, newdata = nd) %>% 
       as_tibble() %>% 
-      # Since we only need the intervals, we'll use `transmute()` rather than `mutate()`
+      # since we only need the intervals, we'll use `transmute()` rather than `mutate()`
       transmute(p_ll = Q2.5,
-                p_ul = Q97.5)
-  ) %>% 
-  bind_cols(nd) %>% 
+                p_ul = Q97.5),
+    # now tack on the `nd` data
+    nd) %>% 
   
-  # We're finally ready to plot
+  # we're finally ready to plot
   ggplot(aes(x = Marriage_s, y = Estimate)) +
   geom_ribbon(aes(ymin = p_ll, ymax = p_ul),
               fill = "firebrick", alpha = 1/5) +
-  geom_ribbon(aes(ymin = f_ll, ymax = f_ul),
-              fill = "firebrick", alpha = 1/5) +
-  geom_line(color = "firebrick4") +
+  geom_smooth(aes(ymin = f_ll, ymax = f_ul),
+              stat = "identity",
+              fill = "firebrick", color = "firebrick4", alpha = 1/5, size = 1/4) +
   coord_cartesian(xlim = range(d$Marriage_s),
                   ylim = c(6, 14)) +
   labs(subtitle = "Counterfactual plot for which\nMedianAgeMarriage_s = 0",
@@ -467,7 +469,7 @@ We follow the same process for Figure 5.5.b.
 # new data
 nd <- 
   tibble(MedianAgeMarriage_s = seq(from = -3, to = 3.5, length.out = 30),
-         Marriage_s          = rep(mean(d$Marriage_s), times = 30))
+         Marriage_s          = mean(d$Marriage_s))
   
 # `fitted()` + `predict()`
 fitted(b5.3, newdata = nd) %>% 
@@ -478,17 +480,17 @@ fitted(b5.3, newdata = nd) %>%
     predict(b5.3, newdata = nd) %>% 
       as_tibble() %>% 
       transmute(p_ll = Q2.5,
-                p_ul = Q97.5)
+                p_ul = Q97.5),
+    nd
   ) %>% 
-  bind_cols(nd) %>% 
   
   # plot
   ggplot(aes(x = MedianAgeMarriage_s, y = Estimate)) +
   geom_ribbon(aes(ymin = p_ll, ymax = p_ul),
               fill = "firebrick", alpha = 1/5) +
-  geom_ribbon(aes(ymin = f_ll, ymax = f_ul),
-              fill = "firebrick", alpha = 1/5) +
-  geom_line(color = "firebrick4") +
+  geom_smooth(aes(ymin = f_ll, ymax = f_ul),
+              stat = "identity",
+              fill = "firebrick", color = "firebrick4", alpha = 1/5, size = 1/4) +
   coord_cartesian(xlim = range(d$MedianAgeMarriage_s),
                   ylim = c(6, 14)) +
   labs(subtitle = "Counterfactual plot for which\nMarriage_s = 0",
@@ -524,7 +526,8 @@ fitted(b5.3) %>%
   geom_text(data = . %>% filter(Loc %in% c("ID", "UT")),
             aes(label = Loc), 
             hjust = 0, nudge_x = - 0.65) +
-  labs(x = "Observed divorce", y = "Predicted divorce") +
+  labs(x = "Observed divorce", 
+       y = "Predicted divorce") +
   theme_bw() +
   theme(panel.grid = element_blank())
 ```
@@ -549,14 +552,14 @@ residuals(b5.3) %>%
     predict(b5.3) %>% 
       as_tibble() %>% 
       transmute(p_ll = Q2.5,
-                p_ul = Q97.5)
+                p_ul = Q97.5),
+    d
   ) %>% 
-  bind_cols(d) %>%
   # here we put our `predict()` intervals into a deviance metric
   mutate(p_ll = Divorce - p_ll,
          p_ul = Divorce - p_ul) %>% 
   
-  # The plot
+  # now plot!
   ggplot(aes(x = reorder(Loc, Estimate), y = Estimate)) +
   geom_hline(yintercept = 0, size = 1/2, 
              color = "firebrick4", alpha = 1/10) +
@@ -596,10 +599,9 @@ residuals(b5.3) %>%
   geom_text_repel(data = . %>% filter(Loc %in% c("ME", "AR", "MS", "AL", "GA", "SC", "ID")),
                   aes(label = Loc),
                   seed = 5.6) +
-  scale_x_continuous(limits = c(0, 45)) +
+  scale_x_continuous("Waffles per capita", limits = c(0, 45)) +
   coord_cartesian(xlim = range(0, 40)) +
-  labs(x = "Waffles per capita",
-       y = "Divorce error") +
+  ylab("Divorce error") +
   theme_bw() +
   theme(panel.grid = element_blank())
 ```  
@@ -611,13 +613,13 @@ More McElreath inspiration: "No matter how many predictors you’ve already incl
 #### Overthinking: Simulating spurious association.
 
 ```{r}
-N <- 100                             # number of cases
+n <- 100                             # number of cases
 
-set.seed(135)                        # setting the seed makes the results reproducible
+set.seed(5)                          # setting the seed makes the results reproducible
 d <- 
-  tibble(x_real = rnorm(N),          # x_real as Gaussian with mean 0 and SD 1 (i.e., the defaults)
-         x_spur = rnorm(N, x_real),  # x_spur as Gaussian with mean = x_real
-         y =      rnorm(N, x_real))  # y as Gaussian with mean = x_real
+  tibble(x_real = rnorm(n),          # x_real as Gaussian with mean 0 and SD 1 (i.e., the defaults)
+         x_spur = rnorm(n, x_real),  # x_spur as Gaussian with mean = x_real
+         y =      rnorm(n, x_real))  # y as Gaussian with mean = x_real
 ```
 
 Here are the quick `pairs()` plots. 
@@ -628,15 +630,17 @@ pairs(d, col = "firebrick4")
 
 We may as well fit a model.
 
-```{r spurious_fit, cache = T, message = F, warning = F}
+```{r spurious_fit_, cache = T, message = F, warning = F}
 brm(data = d, family = gaussian,
     y ~ 1 + x_real + x_spur,
     prior = c(prior(normal(0, 10), class = Intercept),
               prior(normal(0, 1), class = b),
               prior(uniform(0, 10), class = sigma)),
-    iter = 2000, warmup = 500, chains = 4, cores = 4) %>% 
+    iter = 2000, warmup = 500, chains = 4, cores = 4,
+    seed = 5) %>% 
   
-  fixef() %>% round(digits = 2)
+  fixef() %>% 
+  round(digits = 2)
 ```
 
 ## Masked relationship
@@ -669,24 +673,25 @@ By just looking at that mess, do you think you could describe the associations o
 
 McElreath has us start of with a simple univaraible `milk` model.
 
-```{r b5.5, cache = T, message = F, warning = F}
+```{r b5.5_, cache = T, message = F, warning = F}
 b5.5 <- 
   brm(data = d, family = gaussian,
       kcal.per.g ~ 1 + neocortex.perc,
       prior = c(prior(normal(0, 100), class = Intercept),
                 prior(normal(0, 1), class = b),
                 prior(cauchy(0, 1), class = sigma)),
-      iter = 2000, warmup = 500, chains = 4, cores = 4)
+      iter = 2000, warmup = 500, chains = 4, cores = 4,
+      seed = 5)
 ```
 
 The uniform prior was difficult on Stan. After playing around a bit, I just switched to a unit-scale half Cauchy. Similar to the rethinking example in the text, brms warned that "Rows containing NAs were excluded from the model." This isn't necessarily a problem; the model fit just fine. But we should be ashamed of ourselves and look eagerly forward to Chapter 14 where we'll learn how to do better. 
 
-Here's how to explicitly drop the cases with missing values on the predictor.
+To compliment how McElreath removed cases with missing values on our variables of interest with Base R `complete.cases()`, here we'll do so with `tidyr::drop_na()` and a little help with `ends_with()`.
 
 ```{r}
 dcc <- 
   d %>%
-  filter(complete.cases(.))              
+  drop_na(ends_with("_s"))              
 ```
 
 But anyway, let's inspect the parameter summary.
@@ -719,15 +724,15 @@ fitted(b5.5,
   ggplot(aes(x = neocortex.perc, y = Estimate)) +
   geom_ribbon(aes(ymin = Q2.5, ymax = Q97.5),
               fill = "firebrick", alpha = 1/5) +
-  geom_ribbon(aes(ymin = Q25, ymax = Q75),
-              fill = "firebrick4", alpha = 1/5) +
-  geom_line(color = "firebrick4", size = 1/2) +
+  geom_smooth(aes(ymin = Q25, ymax = Q75),
+              stat = "identity",
+              fill = "firebrick4", color = "firebrick4", alpha = 1/5, size = 1/2) +
   geom_point(data = dcc, 
-             aes(x = neocortex.perc, y = kcal.per.g),
+             aes(y = kcal.per.g),
              size = 2, color = "firebrick4") +
   coord_cartesian(xlim = range(dcc$neocortex.perc), 
                   ylim = range(dcc$kcal.per.g)) +
-  labs(y = "kcal.per.g") +
+  ylab("kcal.per.g") +
   theme_bw() +
   theme(panel.grid = element_blank())
 ```
@@ -742,7 +747,7 @@ dcc <-
 
 Now we use `log_mass` as the new sole predictor.
 
-```{r b5.6, cache = T, message = F, warning = F}
+```{r b5.6_, cache = T, message = F, warning = F}
 b5.6 <- 
   brm(data = dcc, family = gaussian,
       kcal.per.g ~ 1 + log_mass,
@@ -750,7 +755,8 @@ b5.6 <-
                 prior(normal(0, 1), class = b),
                 prior(uniform(0, 1), class = sigma)),
       iter = 2000, warmup = 500, chains = 4, cores = 4,
-      control = list(adapt_delta = 0.9))
+      control = list(adapt_delta = 0.9),
+      seed = 5)
 ```
 
 ```{r}
@@ -771,35 +777,33 @@ fitted(b5.6,
   ggplot(aes(x = log_mass, y = Estimate)) +
   geom_ribbon(aes(ymin = Q2.5, ymax = Q97.5),
               fill = "firebrick", alpha = 1/5) +
-  geom_ribbon(aes(ymin = Q25, ymax = Q75),
-              fill = "firebrick4", alpha = 1/5) +
-  geom_line(color = "firebrick4", size = 1/2) +
+  geom_smooth(aes(ymin = Q25, ymax = Q75),
+              stat = "identity",
+              fill = "firebrick4", color = "firebrick4", alpha = 1/5, size = 1/2) +
   geom_point(data = dcc, 
-             aes(x = log_mass, y = kcal.per.g),
+             aes(y = kcal.per.g),
              size = 2, color = "firebrick4") +
   coord_cartesian(xlim = range(dcc$log_mass), 
                   ylim = range(dcc$kcal.per.g)) +
-  labs(y = "kcal.per.g") +
+  ylab("kcal.per.g") +
   theme_bw() +
   theme(panel.grid = element_blank())
 ```
 
 Finally, we're ready to fit with both predictors included in the "joint model." Here's the statistical formula
 
-$$
-\begin{eqnarray}
-\text{kcal.per.g}_i & \sim & \text{Normal}(\mu_i, \sigma) \\
-\mu_i & = & \alpha + \beta_1 \text{neocortex.perc}_i + \beta_2 \text{log}(\text{mass}_i) \\
-\alpha & \sim & \text{Normal}(0, 100) \\
-\beta_1 & \sim & \text{Normal}(0, 1) \\
-\beta_2 & \sim & \text{Normal}(0, 1) \\
-\sigma & \sim & \text{Uniform}(0, 1)
-\end{eqnarray}
-$$
+\begin{align*}
+\text{kcal.per.g}_i & \sim \text{Normal}(\mu_i, \sigma) \\
+\mu_i   & = \alpha + \beta_1 \text{neocortex.perc}_i + \beta_2 \text{log}(\text{mass}_i) \\
+\alpha  & \sim \text{Normal}(0, 100) \\
+\beta_1 & \sim \text{Normal}(0, 1) \\
+\beta_2 & \sim \text{Normal}(0, 1) \\
+\sigma  & \sim \text{Uniform}(0, 1)
+\end{align*}
 
 Note, the HMC chains required a longer `warmup` period and a higher `adapt_delta` setting for the model to converge properly. Life will be much better once we ditch the uniform prior for good.
 
-```{r b5.7, cache = T, message = F, warning = F}
+```{r b5.7_, cache = T, message = F, warning = F}
 b5.7 <- 
   brm(data = dcc, family = gaussian,
       kcal.per.g ~ 1 + neocortex.perc + log_mass,
@@ -807,7 +811,8 @@ b5.7 <-
                 prior(normal(0, 1), class = b),
                 prior(uniform(0, 1), class = sigma)),
       iter = 4000, warmup = 2000, chains = 4, cores = 4,
-      control = list(adapt_delta = 0.999))
+      control = list(adapt_delta = 0.999),
+      seed = 5)
 ```
 
 ```{r}
@@ -830,14 +835,15 @@ b5.7 %>%
   ggplot(aes(x = neocortex.perc, y = Estimate)) +
   geom_ribbon(aes(ymin = Q2.5, ymax = Q97.5),
               fill = "firebrick", alpha = 1/5) +
-  geom_ribbon(aes(ymin = Q25, ymax = Q75),
-              fill = "firebrick4", alpha = 1/5) +
-  geom_line(color = "firebrick4", size = 1/2) +
-  geom_point(data = dcc, aes(x = neocortex.perc, y = kcal.per.g),
+  geom_smooth(aes(ymin = Q25, ymax = Q75),
+              stat = "identity",
+              fill = "firebrick4", color = "firebrick4", alpha = 1/5, size = 1/2) +
+  geom_point(data = dcc, 
+             aes(y = kcal.per.g),
              size = 2, color = "firebrick4") +
   coord_cartesian(xlim = range(dcc$neocortex.perc), 
                   ylim = range(dcc$kcal.per.g)) +
-  labs(y = "kcal.per.g") +
+  ylab("kcal.per.g") +
   theme_bw() +
   theme(panel.grid = element_blank())
 ```
@@ -858,14 +864,15 @@ b5.7 %>%
   ggplot(aes(x = log_mass, y = Estimate)) +
   geom_ribbon(aes(ymin = Q2.5, ymax = Q97.5),
               fill = "firebrick", alpha = 1/5) +
-  geom_ribbon(aes(ymin = Q25, ymax = Q75),
-              fill = "firebrick4", alpha = 1/5) +
-  geom_line(color = "firebrick4", size = 1/2) +
-  geom_point(data = dcc, aes(x = log_mass, y = kcal.per.g),
+  geom_smooth(aes(ymin = Q25, ymax = Q75),
+              stat = "identity",
+              fill = "firebrick4", color = "firebrick4", alpha = 1/5, size = 1/2) +
+  geom_point(data = dcc, 
+             aes(y = kcal.per.g),
              size = 2, color = "firebrick4") +
   coord_cartesian(xlim = range(dcc$log_mass), 
                   ylim = range(dcc$kcal.per.g)) +
-  labs(y = "kcal.per.g") +
+  ylab("kcal.per.g") +
   theme_bw() +
   theme(panel.grid = element_blank())
 ```
@@ -875,14 +882,14 @@ b5.7 %>%
 #### Overthinking: Simulating a masking relationship.
 
 ```{r}
-N   <- 100     # number of cases
-rho <- .7      # correlation between x_pos and x_neg
+n   <- 100   # number of cases
+rho <- .7    # correlation between x_pos and x_neg
 
-set.seed(141)  # setting the seed makes the results reproducible
+set.seed(5)  # setting the seed makes the results reproducible
 d <- 
-  tibble(x_pos = rnorm(N),                              # x_pos as a standard Gaussian
-         x_neg = rnorm(N, rho*x_pos, sqrt(1 - rho^2)),  # x_neg correlated with x_pos
-         y     = rnorm(N, x_pos - x_neg))               # y equally associated with x_pos and x_neg
+  tibble(x_pos = rnorm(n),                                # x_pos as a standard Gaussian
+         x_neg = rnorm(n, rho * x_pos, sqrt(1 - rho^2)),  # x_neg correlated with x_pos
+         y     = rnorm(n, x_pos - x_neg))                 # y equally associated with x_pos and x_neg
 ```
 
 Here are the quick `pairs()` plots. 
@@ -893,13 +900,14 @@ pairs(d, col = "firebrick4")
 
 Here we fit the models with a little help from the `update()` function.
 
-```{r b5.Os, cache = T, message = F, warning = F, results = 'hide'}
+```{r b5.O.both, cache = T, message = F, warning = F, results = 'hide'}
 b5.O.both <- 
   brm(data = d, family = gaussian,
       y ~ 1 + x_pos + x_neg,
       prior = c(prior(normal(0, 100), class = Intercept),
                 prior(normal(0, 1), class = b),
-                prior(cauchy(0, 1), class = sigma)))
+                prior(cauchy(0, 1), class = sigma)),
+      seed = 5)
 
 b5.O.pos <-
   update(b5.O.both, 
@@ -918,23 +926,23 @@ fixef(b5.O.neg)  %>% round(digits = 2)
 fixef(b5.O.both) %>% round(digits = 2)
 ```
 
-## When adding variables hurts
+## Multicollinearity
 
-> Multicollinearity means very strong correlation between two or more predictor variables. The consequence of it is that the posterior distribution will say that a very large range of parameter values are plausible, from tiny associations to massive ones, even if all of the variables are in reality strongly associated with the outcome variable. (pp. 141--142)
+> Multicollinearity means very strong correlation between two or more predictor variables. The consequence of it is that the posterior distribution will say that a very large range of parameter values are plausible, from tiny associations to massive ones, even if all of the variables are in reality strongly associated with the outcome. This frustrating phenomenon arises from the details of how statistical control works. So once you understand multicollinearity, you will better understand [multivariable] models in general. (pp. 141--142)
 
 ### Multicollinear legs.
 
 Let's simulate some leg data.
 
 ```{r}
-N <- 100
-set.seed(531)
+n <- 100
+set.seed(5)
 
 d <- 
-  tibble(height    = rnorm(N, mean = 10, sd = 2),
-         leg_prop  = runif(N, min = 0.4, max = 0.5)) %>% 
-  mutate(leg_left  = leg_prop*height + rnorm(N, mean = 0, sd = 0.02),
-         leg_right = leg_prop*height + rnorm(N, mean = 0, sd = 0.02))
+  tibble(height    = rnorm(n, mean = 10, sd = 2),
+         leg_prop  = runif(n, min = 0.4, max = 0.5)) %>% 
+  mutate(leg_left  = leg_prop * height + rnorm(n, mean = 0, sd = 0.02),
+         leg_right = leg_prop * height + rnorm(n, mean = 0, sd = 0.02))
 ```
 
 `leg_left` and `leg_right` are **highly** correlated.
@@ -946,7 +954,7 @@ d %>%
   round(digits = 4)
 ```
 
-Have you ever even seen a $\rho = .9995$ correlation, before? Here it is in a plot.
+Have you ever even seen a $\rho = .9996$ correlation, before? Here it is in a plot.
 
 ```{r, fig.width = 3, fig.height = 3}
 d %>%
@@ -958,14 +966,15 @@ d %>%
 
 Here's our attempt to predict `height` with both legs.
 
-```{r b5.8, cache = T, message = F, warning = F}
+```{r b5.8_, cache = T, message = F, warning = F}
 b5.8 <- 
   brm(data = d, family = gaussian,
       height ~ 1 + leg_left + leg_right,
       prior = c(prior(normal(10, 100), class = Intercept),
                 prior(normal(2, 10), class = b),
                 prior(uniform(0, 10), class = sigma)),
-      iter = 2000, warmup = 500, chains = 4, cores = 4)
+      iter = 2000, warmup = 500, chains = 4, cores = 4,
+      seed = 5)
 ```
 
 Let's inspect the damage.
@@ -986,10 +995,10 @@ stanplot(b5.8,
          prob = .5, 
          prob_outer = .95,
          point_est = "median") +
-  labs(title = "The coefficient plot for the two-leg model",
+  labs(title    = "The coefficient plot for the two-leg model",
        subtitle = "Holy smokes; look at the widths of those betas!") +
   theme_bw() +
-  theme(text = element_text(size = 14),
+  theme(text         = element_text(size = 14),
         panel.grid   = element_blank(),
         axis.ticks.y = element_blank(),
         axis.text.y  = element_text(hjust = 0))
@@ -997,7 +1006,7 @@ stanplot(b5.8,
 
 Now you can use the `brms::stanplot()` function without explicitly loading the bayesplot package. But loading bayesplot allows you to set the color scheme with `color_scheme_set()`.
 
-This is perhaps the simplest way to plot the bivariate posterior of our two predictor coefficients, Figure 5.8.a.
+This is perhaps the simplest way to plot the bivariate posterior of our two predictor coefficients, Figure 6.2.a.
 
 ```{r, fig.width = 3, fig.height = 3}
 pairs(b5.8, pars = parnames(b5.8)[2:3])
@@ -1019,8 +1028,8 @@ While we're at it, you can make a similar plot with the [`mcmc_scatter()` functi
 
 ```{r, fig.width = 3, fig.height = 3}
 post %>% 
-  mcmc_scatter(pars = c("b_leg_left", "b_leg_right"),
-               size = 1/3, 
+  mcmc_scatter(pars  = c("b_leg_left", "b_leg_right"),
+               size  = 1/3, 
                alpha = 1/10) +
   theme_bw() +
   theme(panel.grid = element_blank())
@@ -1034,24 +1043,24 @@ post %>%
   cor()
 ```
 
-On pages 143--144, McElreath clarified that "from the computer's perspective, this likelihood is really:"
+On page 165, McElreath clarified that "from the computer's perspective, this model is simply:"
 
-$$
-\begin{eqnarray}
-y_i & \sim & \text{Normal}(\mu_i, \sigma) \\
-\mu_i & = & \alpha + (\beta_1 + \beta_2) x_i
-\end{eqnarray}
-$$
+\begin{align*}
+y_i   & \sim \text{Normal}(\mu_i, \sigma) \\
+\mu_i & = \alpha + (\beta_1 + \beta_2) x_i
+\end{align*}
 
-Accordingly, here's the posterior of the sum of the two regression coefficients, Figure 5.8.b. We'll use `tidybayes::geom_halfeyeh()` to both plot the density and mark off the posterior median and percentile-based 95% probability intervals at its base.
+Accordingly, here's the posterior of the sum of the two regression coefficients, Figure 6.2.b. We'll use `tidybayes::geom_halfeyeh()` to both plot the density and mark off the posterior median and percentile-based 95% probability intervals at its base.
 
-```{r, fig.width = 3, fig.height = 3}
+```{r, fig.width = 3, fig.height = 3, warning = F, message = F}
+library(tidybayes)
+
 post %>% 
   ggplot(aes(x = b_leg_left + b_leg_right, y = 0)) +
-  geom_halfeyeh(fill = "firebrick4", 
+  geom_halfeyeh(fill = "firebrick", 
                 point_interval = median_qi, .width = .95) +
   scale_y_continuous(NULL, breaks = NULL) +
-  labs(title = "Sum the multicollinear coefficients",
+  labs(title    = "Sum the multicollinear coefficients",
        subtitle = "Marked by the median and 95% PIs") +
   theme_bw() +
   theme(panel.grid = element_blank())
@@ -1066,20 +1075,22 @@ b5.9 <-
       prior = c(prior(normal(10, 100), class = Intercept),
                 prior(normal(2, 10), class = b),
                 prior(uniform(0, 10), class = sigma)),
-      iter = 2000, warmup = 500, chains = 4, cores = 4)
+      iter = 2000, warmup = 500, chains = 4, cores = 4,
+      seed = 5)
 ```
+
 
 ```{r}
 print(b5.9)
 ```
 
-That posterior $SD$ looks much better. Compare this density to the one in Figure 5.8.b.
+That posterior $SD$ looks much better. Compare this density to the one in Figure 6.1.b.
 
 ```{r, fig.width = 3, fig.height = 3}
 posterior_samples(b5.9) %>% 
   
   ggplot(aes(x = b_leg_left, y = 0)) +
-  geom_halfeyeh(fill = "firebrick4", 
+  geom_halfeyeh(fill = "firebrick", 
                 point_interval = median_qi, .width = .95) +
   scale_y_continuous(NULL, breaks = NULL) +
   labs(title    = "Just one coefficient needed",
@@ -1109,24 +1120,27 @@ detach(package:rethinking, unload = TRUE)
 library(brms)
 ```
 
-We'll follow the text and fit the two univariable models, first. Note our use of `update()`.
+We'll follow the text and fit the two univariable models, first. Note our use of the `update()` function.
 
-```{r b5.10_and_b5.11, cache = T, message = F, warning = F, results = 'hide'}
-# kcal.per.g regressed on perc.fat
+```{r b5.10_b5.11, cache = T, message = F, warning = F, results = 'hide'}
+# `kcal.per.g` regressed on `perc.fat`
 b5.10 <- 
   brm(data = d, family = gaussian,
       kcal.per.g ~ 1 + perc.fat,
       prior = c(prior(normal(.6, 10), class = Intercept),
                 prior(normal(0, 1), class = b),
                 prior(uniform(0, 10), class = sigma)),
-      iter = 2000, warmup = 500, chains = 4, cores = 4)
+      iter = 2000, warmup = 500, chains = 4, cores = 4,
+      seed = 5)
 
-# kcal.per.g regressed on perc.lactose
+# `kcal.per.g` regressed on `perc.lactose`
 b5.11 <- 
   update(b5.10,
          newdata = d,
          formula = kcal.per.g ~ 1 + perc.lactose)
 ```
+
+Compare the coefficients.
 
 ```{r}
 posterior_summary(b5.10) %>% round(digits = 3)
@@ -1140,7 +1154,7 @@ posterior_interval(b5.10)[2, ] %>% round(digits = 3)
 posterior_interval(b5.11)[2, ] %>% round(digits = 3)
 ```
 
-Now "watch what happens when we place both predictor varaibles in the same regression model" (p. 146)
+Now "watch what happens when we place both predictor varaibles in the same regression model" (p. 146).
 
 ```{r b5.12, cache = T, message = F, warning = F, results = 'hide'}
 b5.12 <- 
@@ -1160,7 +1174,7 @@ You can make custom pairs plots with [GGalley](https://cran.r-project.org/web/pa
 library(GGally)
 
 ggpairs(data = d, columns = c(3:4, 6)) + 
-  theme_bw()
+  theme(panel.grid = element_blank())
 ```
 
 But you can customize [these](http://ggobi.github.io/ggally/), too. E.g.,
@@ -1178,18 +1192,20 @@ my_lower <- function(data, mapping, ...){
     geom_point(color = "firebrick", alpha = .8, size = 1/4)
   }
 
-# Then plug those custom functions into `ggpairs()`
+# then plug those custom functions into `ggpairs()`
 ggpairs(data  = d, columns = c(3:4, 6),
         diag  = list(continuous = my_diag),
         lower = list(continuous = my_lower)) + 
   theme_bw() +
-  theme(strip.background = element_rect(fill = "white"),
+  theme(strip.background = element_rect(fill = "white", color = "white"),
         axis.text        = element_blank(),
         axis.ticks       = element_blank(),
         panel.grid       = element_blank())
 ```
 
-McElreath wrote "these two variables form essentially a single axis of variation" (p. 148). You can really see that on the lower two scatter plots. You'll note the `ggpairs()` plot also showed the Pearson's correlation coefficients.
+Our two predictor "variables are negatively correlated, and so strongly so that they are nearly redundant. Either helps in predicting `kcal.per.g`, but neither helps much *once you already know the other*" (p. 148, *emphasis* in the original). You can really see that on the lower two scatter plots. You'll note the `ggpairs()` plot also showed the Pearson's correlation coefficients, se we don't need to use the `cor()` function like McElreath did in the text.
+
+In the next section, we'll run the simulation necessary for our version of Figure 5.10.
 
 #### Overthinking: Simulating collinearity.
 
@@ -1217,8 +1233,7 @@ n_rho  <- 30
 d <-
   tibble(seed = 1:n_seed) %>% 
   expand(seed, rho = seq(from = 0, to = .99, length.out = n_rho)) %>% 
-  mutate(parameter_sd = purrr::map2(seed, rho, sim_coll)) %>% 
-  unnest() %>% 
+  mutate(parameter_sd = purrr::map2_dbl(seed, rho, sim_coll)) %>% 
   group_by(rho) %>% 
   # we'll `summarise()` our output by the mean and 95% intervals
   summarise(mean = mean(parameter_sd),
@@ -1231,9 +1246,9 @@ We've added 95% interval bands to our version of Figure 5.10.
 ```{r, fig.width = 3.25, fig.height = 2.75}
 d %>% 
   ggplot(aes(x = rho, y = mean)) +
-  geom_line(color = "firebrick4") +
-  geom_ribbon(aes(ymin = ll, ymax = ul),
-              fill = "firebrick", alpha = 1/4) +
+  geom_smooth(aes(ymin = ll, ymax = ul),
+              stat = "identity",
+              fill = "firebrick", color = "firebrick4", alpha = 1/5, size = 1/2) +
   labs(x = expression(rho),
        y = "parameter SD") +
   coord_cartesian(ylim = c(0, .0072)) +
@@ -1255,14 +1270,14 @@ It helped me understand the next example by mapping out the sequence of events M
 Based on the design, let's simulate our data.
 
 ```{r}
-N <- 100
+n <- 100
 
-set.seed(17)
+set.seed(5)
 d <- 
-  tibble(h0        = rnorm(N, mean = 10, sd = 2), 
-         treatment = rep(0:1, each = N / 2),
-         fungus    = rbinom(N, size = 1, prob = .5 - treatment * 0.4),
-         h1        = h0 + rnorm(N, mean = 5 - 3 * fungus, sd = 1))
+  tibble(h0        = rnorm(n, mean = 10, sd = 2), 
+         treatment = rep(0:1, each = n / 2),
+         fungus    = rbinom(n, size = 1, prob = .5 - treatment * 0.4),
+         h1        = h0 + rnorm(n, mean = 5 - 3 * fungus, sd = 1))
 ```
 
 We'll use `head()` to peek at the data.
@@ -1274,7 +1289,7 @@ d %>%
 
 These data + the model were rough on Stan, at first, which spat out warnings about divergent transitions. The model ran fine after setting `warmup = 1000` and `adapt_delta = 0.99`.
 
-```{r b5.13, cache = T, message = F, warning = F}
+```{r b5.13_, cache = T, message = F, warning = F}
 b5.13 <- 
   brm(data = d, family = gaussian,
       h1 ~ 1 + h0 + treatment + fungus,
@@ -1282,7 +1297,8 @@ b5.13 <-
                 prior(normal(0, 10), class = b),
                 prior(uniform(0, 10), class = sigma)),
       iter = 2000, warmup = 1000, chains = 4, cores = 4,
-      control = list(adapt_delta = 0.99))
+      control = list(adapt_delta = 0.99),
+      seed = 5)
 ```
 
 ```{r}
@@ -1291,7 +1307,7 @@ print(b5.13)
 
 Now fit the model after excluding `fungus`, our post-treatment variable.
 
-```{r b5.14, cache = T, message = F, warning = F, results = 'hide'}
+```{r b5.14_u, cache = T, message = F, warning = F, results = 'hide'}
 b5.14 <- 
   update(b5.13, 
          formula = h1 ~ 1 + h0 + treatment)
@@ -1336,15 +1352,18 @@ Let's fit the first `height` model with the `male` dummy.
 
 Note. The uniform prior McElreath used in the text in conjunction with the `brms::brm()` function seemed to cause problems for the HMC chains, here. After experimenting with start values, increasing `warmup`, and increasing `adapt_delta`, switching out the uniform prior did the trick. Anticipating Chapter 8, I recommend you use a weakly-regularizing half Cauchy for $\sigma$.
 
-```{r b5.15, cache = T, message = F, warning = F}
+```{r b5.15_, cache = T, message = F, warning = F}
 b5.15 <- 
   brm(data = d, family = gaussian,
       height ~ 1 + male,
       prior = c(prior(normal(178, 100), class = Intercept),
                 prior(normal(0, 10), class = b),
                 prior(cauchy(0, 2), class = sigma)),
-      iter = 2000, warmup = 500, chains = 4, cores = 4)
+      iter = 2000, warmup = 500, chains = 4, cores = 4,
+      seed = 5)
 ```
+
+Check the summary.
 
 ```{r}
 print(b5.15)
@@ -1371,7 +1390,7 @@ fitted(b5.15,
 
 And you could even plot.
 
-```{r, fig.width = 3, fig.height = 3}
+```{r, fig.width = 3, fig.height = 3, warning = F, message = F}
 fitted(b5.15,
        newdata = nd,
        summary = F) %>% 
@@ -1391,12 +1410,10 @@ fitted(b5.15,
 
 The reparameterized model follows the form
 
-$$
-\begin{eqnarray}
-\text{height}_i & \sim & \text{Normal}(\mu_i, \sigma) \\
-\mu_i & = & \alpha_\text{female} (1 - \text{male}_i) + \alpha_\text{male} \text{male}_i
-\end{eqnarray}
-$$
+\begin{align*}
+\text{height}_i & \sim \text{Normal}(\mu_i, \sigma) \\
+\mu_i & = \alpha_\text{female} (1 - \text{male}_i) + \alpha_\text{male} \text{male}_i
+\end{align*}
 
 So then a `female` dummy would satisfy the condition $\text{female}_i = (1 - \text{male}_i)$. Let's make that dummy.
 
@@ -1408,13 +1425,14 @@ d <-
 
 Everyone has their own idiosyncratic way of coding. One of my quirks is I always explicitly specify a model’s intercept following the form `y ~ 1 + x`, where `y` is the criterion, `x` stands for the predictors, and `1` is the intercept. You don’t have to do this, of course. You could just code `y ~ x` to get the same results. The `brm()` function assumes you want that intercept. One of the reasons I like the verbose version is it reminds me to think about the intercept and to include it in my priors. Another nice feature is that is helps me make sense of the code for this model: ` height ~ 0 + male + female`. When we replace `… ~ 1 + …` with `… ~ 0 + …`, we tell `brm()` to remove the intercept. Removing the intercept allows us to include ALL levels of a given categorical variable in our model. In this case, we’ve expressed sex as two dummies, `female` and `male`. Taking out the intercept lets us put both dummies into the formula.
 
-```{r b5.15b, cache = T, message = F, warning = F}
+```{r b5.15_b, cache = T, message = F, warning = F}
 b5.15b <- 
   brm(data = d, family = gaussian,
       height ~ 0 + male + female,
       prior = c(prior(normal(178, 100), class = b),
                 prior(cauchy(0, 2), class = sigma)),
-      iter = 2000, warmup = 500, chains = 4, cores = 4)
+      iter = 2000, warmup = 500, chains = 4, cores = 4,
+      seed = 5)
 ```
 
 ```{r}
@@ -1464,7 +1482,7 @@ d %>%
   distinct(clade)
 ```
 
-As `clade` has 4 categories, let's convert these to 4 dummy variables.
+As `clade` has 4 categories, let's use `ifelse()` to convert these to 4 dummy variables.
 
 ```{r}
 d <- 
@@ -1485,7 +1503,7 @@ b5.16 <-
                 prior(normal(0, 1), class = b),
                 prior(uniform(0, 10), class = sigma)),
       iter = 2000, warmup = 500, chains = 4, cores = 4,
-      control = list(adapt_delta = 0.8))
+      seed = 5)
 ```
 
 ```{r}
@@ -1540,7 +1558,8 @@ fitted(b5.16,
        summary = F) %>% 
   as_tibble() %>% 
   gather() %>% 
-  mutate(primate = rep(c("New World Monkey", "Old World Monkey", "Strepsirrhine", "Ape"), each = n() / 4)) %>% 
+  mutate(primate = rep(c("New World Monkey", "Old World Monkey", "Strepsirrhine", "Ape"), 
+                       each = n() / 4)) %>% 
   
   ggplot(aes(x = value, y = reorder(primate, value))) +
   geom_halfeyeh(fill = "firebrick4", 
@@ -1562,14 +1581,16 @@ quantile(post$mu_nwm - post$mu_owm, probs = c(.5, .025, .975))
 # tidyverse + tidybayes
 post %>%
   transmute(dif = mu_nwm - mu_owm) %>%
-  median_qi(dif)
+  median_qi()
 ```
 
 ### Adding regular predictor variables.
 
 If we wanted to fit the model including `perc.fat` as an additional predictor, the basic statistical formula would be
 
-$$\mu_i = \alpha + \beta_\text{clade_nwm} \text{clade_nwm}_i + \beta_\text{clade_owm} \text{clade_owm}_i + \beta_\text{clade_s} \text{clade_s}_i + \beta_\text{perc.fat} \text{perc.fat}_i$$
+$$
+\mu_i = \alpha + \beta_\text{clade_nwm} \text{clade_nwm}_i + \beta_\text{clade_owm} \text{clade_owm}_i + \beta_\text{clade_s} \text{clade_s}_i + \beta_\text{perc.fat} \text{perc.fat}_i
+$$
 
 The corresponding `formula` argument within `brm()` would be `kcal.per.g ~ 1 + clade_nwm + clade_owm + clade_s + perc.fat`.
 
@@ -1577,13 +1598,14 @@ The corresponding `formula` argument within `brm()` would be `kcal.per.g ~ 1 + c
 
 Using the code below, there's no need to transform `d$clade` into `d$clade_id`. The advantage of this approach is the indices in the model summary are more descriptive than `a[1]` through `a[4]`.
 
-```{r b5.16_alt, cache = T, message = F, warning = F}
+```{r b5.16_alt_, cache = T, message = F, warning = F}
 b5.16_alt <- 
   brm(data = d, family = gaussian,
       kcal.per.g ~ 0 + clade,
       prior = c(prior(normal(.6, 10), class = b),
                 prior(uniform(0, 10), class = sigma)),
-      iter = 2000, warmup = 500, chains = 4, cores = 4)
+      iter = 2000, warmup = 500, chains = 4, cores = 4,
+      seed = 5)
 ```
 
 ```{r}
@@ -1609,7 +1631,7 @@ sessionInfo()
 ```
 
 ```{r, echo = F}
-rm(d, b5.1, nd, fitd_b5.1, b5.2, fitd_b5.2, b5.3, post, b5.4, fitd_b5.4, res_b5.4, text, b5.4b, N, b5.5, dcc, b5.6, b5.7, rho, b5.O.both, b5.O.pos, b5.O.neg, b5.8, b5.9, b5.10, b5.11, b5.12, my_diag, my_lower, sim_coll, n_seed, n_rho, b5.13, b5.14, b5.15, b5.15b, b5.16, b5.16_alt)
+rm(d, b5.1, nd, f, b5.2, b5.3, post, b5.4, r, text, b5.4b, n, b5.5, dcc, b5.6, b5.7, rho, b5.O.both, b5.O.pos, b5.O.neg, b5.8, b5.9, b5.10, b5.11, b5.12, my_diag, my_lower, sim_coll, n_seed, n_rho, b5.13, b5.14, b5.15, b5.15b, b5.16, b5.16_alt)
 ```
 
 ```{r, echo = F, message = F, warning = F, results = "hide"}

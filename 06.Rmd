@@ -6,6 +6,10 @@ output:
   github_document
 ---
 
+```{r set-options_06, echo = FALSE, cache = FALSE}
+options(width = 100)
+```
+
 # Overfitting, Regularization, and Information Criteria
 
 In this chapter we contend with two contrasting kinds of statistical error:
@@ -40,7 +44,7 @@ library(tidyverse)
 
 Let's get ready for Figure 6.2. The plots in this chapter will be characterized by `theme_classic() + theme(text = element_text(family = "Courier"))`. Our color palette will come from the [rcartocolor package](https://cran.r-project.org/web/packages/rcartocolor/index.html), which provides color schemes [designed by 'CARTO'](https://carto.com/carto-colors/).
 
-```{r}
+```{r, warning = F, message = F}
 # install.packages("rcartocolor", dependencies = T)
 library(rcartocolor)
 ```
@@ -105,10 +109,9 @@ fits <-
 
 fits %>% 
   ggplot(aes(x = r2, y = formula, label = r2_text)) +
-  geom_text(color = carto_pal(7, "BurgYl")[7], size = 3.5)  +
-  labs(x = expression(italic(R)^2),
-       y = NULL) +
-  scale_x_continuous(limits = 0:1, breaks = 0:1) +
+  geom_text(color = carto_pal(7, "BurgYl")[7], size = 3.5) +
+  scale_x_continuous(expression(italic(R)^2), limits = 0:1, breaks = 0:1) +
+  ylab(NULL) +
   theme_classic() +
   theme(axis.text.y  = element_text(hjust = 0),
         axis.ticks.y = element_blank(),
@@ -128,17 +131,16 @@ fits %>%
   select(model, `(Intercept)`, mass, everything())
 ```
 
-For Figure 6.3, we'll make each plot individually and them glue them together with `gridExtra::grid.arrange()`. Since they all share a common stucture, we'll start by specifying a base plot which we'll save as `p`.
+For Figure 6.3, we’ll make each plot individually and them glue them together with `gridExtra::grid.arrange()`. Since they all share a common stucture, we'll start by specifying a base plot which we'll save as `p`.
 
 ```{r}
 p <-
   d %>% 
   ggplot(aes(x = mass, y = brain)) +
   geom_point(color = carto_pal(7, "BurgYl")[7]) +
-  scale_x_continuous(limits = c(33, 62), expand = c(0, 0)) +
+  scale_x_continuous("body mass (kg)", limits = c(33, 62), expand = c(0, 0)) +
   coord_cartesian(ylim = c(300, 1500)) +
-  labs(x = "body mass (kg)",
-       y = "brain volume (cc)") +
+  ylab("brain volume (cc)") +
   theme_classic() +
   theme(text = element_text(family = "Courier"),
         panel.background = element_rect(fill = alpha(carto_pal(7, "BurgYl")[3], 1/4)))
@@ -150,7 +152,7 @@ Now for each subplot, we'll tack the subplot-specific components onto `p`. The m
 # linear
 p1 <- 
   p +
-  stat_smooth(method = "lm", fullrange = TRUE, level = .89,  # Note our rare use of 89% confidence intervals
+  stat_smooth(method = "lm", fullrange = TRUE, level = .89,  # note our rare use of 89% intervals
               color = carto_pal(7, "BurgYl")[6], fill = carto_pal(7, "BurgYl")[6], 
               size = 1/2, alpha = 1/3,
               formula = y ~ x) +
@@ -190,13 +192,15 @@ p5 <-
               color = carto_pal(7, "BurgYl")[6], fill = carto_pal(7, "BurgYl")[6], 
               size = 1/2, alpha = 1/3,              
               formula = y ~ poly(x, 5)) +
-  coord_cartesian(ylim = c(150, 1900)) +  # We're adjusting the y-axis range for this plot (and the next)
+  # we're adjusting the y-axis range for this plot (and the next)
+  coord_cartesian(ylim = c(150, 1900)) +
   ggtitle(NULL, subtitle = expression(paste(italic(R)^2, " = .99")))
   
 # sixth-order polynomial
 p6 <-
   p + 
-  geom_hline(yintercept = 0, color = carto_pal(7, "BurgYl")[2], linetype = 2) +  # to mark off 0 on the y-axis
+  # mark off 0 on the y-axis
+  geom_hline(yintercept = 0, color = carto_pal(7, "BurgYl")[2], linetype = 2) + 
   stat_smooth(method = "lm", fullrange = TRUE, level = .89,
               color = carto_pal(7, "BurgYl")[6], fill = carto_pal(7, "BurgYl")[6], 
               size = 1/2, alpha = 1/3,              
@@ -205,7 +209,7 @@ p6 <-
   ggtitle(NULL, subtitle = expression(paste(italic(R)^2, " = 1")))
 ```
 
-Okay, now we're ready to combine six subplots and produce our version of Figure 6.3.
+Okay, now we're ready to combine the six subplots and produce our version of Figure 6.3.
 
 ```{r, fig.width = 6, fig.height = 8, warning = F, message = F}
 library(gridExtra)
@@ -271,7 +275,7 @@ make_lines <- function(row){
 
 Here we’ll make a tibble, `lines`, which will specify rows 1 through 7 in the `row` column. We’ll then feed those `row` numbers into our custom `make_lines()` function, which will return the predicted values and their corresponding `mass` values, per model.
 
-```{r}
+```{r, warning = F, message = F}
 (
   lines <-
   tibble(row = 1:7) %>% 
@@ -352,7 +356,7 @@ weatherperson %>%
         text = element_text(family = "Courier"))
 ```
 
-Here's how the newcomer faired:
+Here's how the newcomer fared:
 
 ```{r, fig.width = 6, fig.height = 1.5}
 newcomer <-
@@ -406,7 +410,7 @@ weatherperson %>%
 ```{r}
 weatherperson %>% 
   bind_rows(newcomer) %>% 
-  mutate(person = rep(c("weatherperson", "newcomer"), each = n()/2),
+  mutate(person = rep(c("weatherperson", "newcomer"), each = n() / 2),
          hit    = ifelse(prediction == observed, 1, 1 - prediction - observed)) %>% 
   group_by(person, hit) %>% 
   count() %>% 
@@ -544,7 +548,7 @@ lm(data = d,
 
 #### Overthinking: Computing deviance.
 
-To follow along with the text, we'll need to standardize `mass` before we compute deviance.
+To follow along with the text, we’ll need to standardize `mass` before we compute deviance.
 
 ```{r}
 d <-
@@ -558,15 +562,15 @@ Open brms.
 library(brms)
 ```
 
-Now we'll specify the initial values and fit the model.
+Now we’ll specify the initial values and fit the model.
 
-```{r b6.8, cache = T, message = F, warning = F}
+```{r b6.8_, cache = T, message = F, warning = F}
 # Here we specify our starting values
 inits <- list(Intercept = mean(d$brain),
               mass_s    = 0,
               sigma     = sd(d$brain))
 
-inits_list <-list(inits, inits, inits, inits)
+inits_list <- list(inits, inits, inits, inits)
 
 # The model
 b6.8 <- 
@@ -576,34 +580,35 @@ b6.8 <-
                 prior(normal(0, 1000), class = b),
                 prior(cauchy(0, 10), class = sigma)),
       iter = 2000, warmup = 1000, chains = 4, cores = 4,
-      inits = inits_list)  # Here we put our start values in the `brm()` function
+      inits = inits_list,  # here we insert our start values
+      seed = 6)
 ```
 
 ```{r}
 print(b6.8)
 ```
 
-**Details about `inits`**: You don’t have to specify your `inits` lists outside of the `brm()` function the way we did, here. This is just how I currently prefer. When you specify start values for the parameters in your Stan models, you need to do so with a list of lists. You need as many lists as HMC chains—four in this example. And then you put your—in this case—four lists inside a list. Lists within lists. Also, we were lazy and specified the same start values across all our chains. You can mix them up across chains if you want.
+**Details about `inits`**: You don’t have to specify your `inits` lists outside of the `brm()` function the way we did, here. This is just how I currently prefer. When you specify start values for the parameters in your Stan models, you need to do so with a list of lists. You need as many lists as HMC chains--four in this example. And then you put your--in this case--four lists inside a list. Lists within lists. Also, we were lazy and specified the same start values across all our chains. You can mix them up across chains if you want.
 
-Anyway, the brms function `log_lik()` returns a matrix. Each occasion gets a column and each HMC chain iteration gets a row.
+Anyway, the brms function `log_lik()` returns a matrix. Each occasion gets a column and each HMC chain iteration gets a row. To make it easier to understand the output, we'll name the columns by `species` using the [`.name_repair` argument](https://tibble.tidyverse.org/reference/name-repair.html) within the `as_tibble()` function. 
 
 ```{r}
-dfLL <-
+ll <-
   b6.8 %>%
   log_lik() %>%
-  as_tibble()
+  as_tibble(.name_repair = ~ d$species)
 
-dfLL %>%
+ll %>%
   glimpse()
 ```
 
-Deviance is the sum of the occasion-level LLs multiplied by -2.
+Deviance is the sum of the occasion-level LLs multiplied by -2. Why by -2? "The -2 in front doesn't do anything important. It's there for historical reasons" (p. 182). If you follow footnote 93 at the end of that sentence in the text, you'll learn "under somewhat general conditions, for many common model types, a difference between two deviances has a chi-squared distribution. The factor of 2 is there to scale it that way" (p. 451).
 
 ```{r}
-dfLL <-
-  dfLL %>%
+ll <-
+  ll %>%
   mutate(sums     = rowSums(.),
-         deviance = -2*sums)
+         deviance = -2 * sums)
 ```
 
 Because we used HMC, deviance is a distribution rather than a single number.
@@ -611,12 +616,12 @@ Because we used HMC, deviance is a distribution rather than a single number.
 ```{r, fig.width = 3.75, fig.height = 2.5, warning = F, message = F}
 library(tidybayes)
 
-dfLL %>%
+ll %>%
   ggplot(aes(x = deviance, y = 0)) +
   geom_halfeyeh(fill = carto_pal(7, "BurgYl")[5], color = carto_pal(7, "BurgYl")[7],
                 point_interval = median_qi, .width = .95) +
-  scale_x_continuous(breaks = quantile(dfLL$deviance, c(.025, .5, .975)),
-                     labels = quantile(dfLL$deviance, c(.025, .5, .975)) %>% round(1)) +
+  scale_x_continuous(breaks = quantile(ll$deviance, c(.025, .5, .975)),
+                     labels = quantile(ll$deviance, c(.025, .5, .975)) %>% round(1)) +
   scale_y_continuous(NULL, breaks = NULL) +
   labs(title = "The deviance distribution") +
   theme_classic() +
@@ -639,7 +644,7 @@ I find the `rethinking::sim.train.test()` function opaque. If you're curious, yo
 ```{r, eval = F}
 library(rethinking)
 
-N       <- 20
+n       <- 20
 kseq    <- 1:5
 # I've reduced this number by one order of magnitude to reduce computation time
 n_sim   <- 1e3
@@ -649,17 +654,17 @@ n_cores <- 4
 dev_20 <-
   sapply(kseq, function(k) {
     print(k);
-    r <- mcreplicate(n_sim, sim.train.test(N = N, k = k),
+    r <- mcreplicate(n_sim, sim.train.test(N = n, k = k),
                      mc.cores = n_cores);
     c(mean(r[1, ]), mean(r[2, ]), sd(r[1, ]), sd(r[2, ]))
     })
 
 # here's our dev object based on N <- 100
-N       <- 100
+n       <- 100
 dev_100 <- 
   sapply(kseq, function(k) {
     print(k);
-    r <- mcreplicate(n_sim, sim.train.test(N = N, k = k), 
+    r <- mcreplicate(n_sim, sim.train.test(N = n, k = k), 
                      mc.cores = n_cores);
     c(mean(r[1, ]), mean(r[2, ]), sd(r[1, ]), sd(r[2, ]))
     })
@@ -677,7 +682,7 @@ load("06_sims/sim_1.rda")
 
 If you didn't quite catch it, the simulation yields `dev_20` and `dev_100`. We'll want to convert them to tibbles, bind them together, and wrangle extensively before we're ready to plot.
 
-```{r}
+```{r, message = F, warning = F}
 dev_tibble <-
   dev_20 %>% 
   as_tibble() %>% 
@@ -685,12 +690,12 @@ dev_tibble <-
     dev_100 %>%
       as_tibble()
   ) %>% 
-  mutate(N = rep(c("N = 20", "N = 100"), each = 4),
+  mutate(n         = rep(c("n = 20", "n = 100"), each = 4),
          statistic = rep(c("mean", "sd"), each = 2) %>% rep(., times = 2),
          sample    = rep(c("in", "out"), times = 2) %>% rep(., times = 2)) %>% 
-  gather(n_par, value, -N, -statistic, -sample) %>% 
+  gather(n_par, value, -n, -statistic, -sample) %>% 
   spread(key = statistic, value = value) %>% 
-  mutate(N     = factor(N, levels = c("N = 20", "N = 100")),
+  mutate(n     = factor(n, levels = c("n = 20", "n = 100")),
          n_par = str_remove(n_par, "V") %>% as.double()) %>% 
   mutate(n_par = ifelse(sample == "in", n_par - .075, n_par + .075))
 
@@ -726,7 +731,7 @@ dev_tibble %>%
         legend.position  = "none",
         strip.background = element_rect(fill = alpha(carto_pal(7, "BurgYl")[1], 1/4), color = "white"),
         panel.background = element_rect(fill = alpha(carto_pal(7, "BurgYl")[3], 1/4))) +
-  facet_wrap(~N, scale = "free_y")
+  facet_wrap(~n, scale = "free_y")
 ```
 
 Even with a substantially smaller $N$, our simulation results matched up well with those in the text.
@@ -742,15 +747,15 @@ tibble(x = seq(from = - 3.5,
                to   = 3.5, 
                by   = .01)) %>%
   
-  ggplot(aes(x = x)) +
-  geom_ribbon(aes(ymin = 0, ymax = dnorm(x, mean = 0, sd = 0.2)), 
+  ggplot(aes(x = x, ymin = 0)) +
+  geom_ribbon(aes(ymax = dnorm(x, mean = 0, sd = 0.2)), 
               fill = carto_pal(7, "BurgYl")[7], alpha = 1/2) +
-  geom_ribbon(aes(ymin = 0, ymax = dnorm(x, mean = 0, sd = 0.5)), 
+  geom_ribbon(aes(ymax = dnorm(x, mean = 0, sd = 0.5)), 
               fill = carto_pal(7, "BurgYl")[6], alpha = 1/2) +
-  geom_ribbon(aes(ymin = 0, ymax = dnorm(x, mean = 0, sd = 1)), 
+  geom_ribbon(aes(ymax = dnorm(x, mean = 0, sd = 1)), 
               fill = carto_pal(7, "BurgYl")[5], alpha = 1/2) +
   scale_y_continuous(NULL, breaks = NULL) +
-  labs(x = "parameter value") +
+  xlab("parameter value") +
   coord_cartesian(xlim = c(-3, 3)) +
   theme_classic() +
   theme(text = element_text(family = "Courier"),
@@ -759,7 +764,7 @@ tibble(x = seq(from = - 3.5,
 
 In our version of the plot, darker purple = more regularizing.
 
-But to prepare for Figure 6.9, let's simulate. This time we'll wrap the basic simulation code we used before into a function we'll call `make_sim()`. Our `make_sim()` function has two parameters, `N` and `b_sigma`, both of which come from McElreath's simulation code. So you'll note that instead of hard coding the values for `N` and `b_sigma` within the simulation, we're leaving them adjustable (i.e., `sim.train.test(N = N, k = k, b_sigma = b_sigma)`). Also notice that instead of saving the simulation results as objects, like before, we're just converting them to tibbles with the `as_tibble()` function at the bottom. Our goal is to use `make_sim()` within a `purrr::map2()` statement. The result will be a nested tibble into which we've saved the results of 6 simulations based off of two sample sizes (i.e., `N = c(20, 100)`) and three values of $\sigma$ for our Gaussian $\beta$ prior (i.e., `b_sigma = c(1, .5, .2)`).
+But to prepare for Figure 6.9, let's simulate. This time we'll wrap the basic simulation code we used before into a function we'll call `make_sim()`. Our `make_sim()` function has two parameters, `N` and `b_sigma`, both of which come from McElreath's simulation code. So you'll note that instead of hard coding the values for `N` and `b_sigma` within the simulation, we're leaving them adjustable (i.e., `sim.train.test(N = n, k = k, b_sigma = b_sigma)`). Also notice that instead of saving the simulation results as objects, like before, we're just converting them to tibbles with the `as_tibble()` function at the bottom. Our goal is to use `make_sim()` within a `purrr::map2()` statement. The result will be a nested tibble into which we've saved the results of 6 simulations based off of two sample sizes (i.e., `n = c(20, 100)`) and three values of $\sigma$ for our Gaussian $\beta$ prior (i.e., `b_sigma = c(1, .5, .2)`).
 
 ```{r, eval = F}
 library(rethinking)
@@ -767,10 +772,11 @@ library(rethinking)
 # I've reduced this number by one order of magnitude to reduce computation time
 n_sim <- 1e3
 
-make_sim <- function(N, b_sigma){
+make_sim <- function(n, b_sigma){
   sapply(kseq, function(k) {
     print(k);
-    r <- mcreplicate(n_sim, sim.train.test(N = N, k = k, b_sigma = b_sigma),  # this is an augmented line of code
+    # this is an augmented line of code
+    r <- mcreplicate(n_sim, sim.train.test(N = n, k = k, b_sigma = b_sigma),
                      mc.cores = n_cores);
     c(mean(r[1, ]), mean(r[2, ]), sd(r[1, ]), sd(r[2, ])) }) %>% 
     
@@ -779,9 +785,9 @@ make_sim <- function(N, b_sigma){
 }
 
 s <-
-  tibble(N       = rep(c(20, 100), each = 3),
+  tibble(n       = rep(c(20, 100), each = 3),
          b_sigma = rep(c(1, .5, .2), times = 2)) %>% 
-  mutate(sim     = map2(N, b_sigma, make_sim)) %>% 
+  mutate(sim     = map2(n, b_sigma, make_sim)) %>% 
   unnest()
 ```
 
@@ -793,6 +799,9 @@ s <-
 # save("s", file = "06_sims/sim_2.rda")
 
 load("06_sims/sim_2.rda")
+s <-
+  s %>% 
+  rename(n = N)
 ```
 
 We'll follow the same principles for wrangling these data as we did those from the previous simulation, `dev_tibble`. And after wrangling, we'll feed the data directly into the code for our version of Figure 6.9.
@@ -802,9 +811,9 @@ We'll follow the same principles for wrangling these data as we did those from t
 s %>% 
   mutate(statistic = rep(c("mean", "sd"), each = 2) %>% rep(., times = 3 * 2),
          sample    = rep(c("in", "out"), times = 2) %>% rep(., times = 3 * 2)) %>% 
-  gather(n_par, value, -N, -b_sigma, -statistic, -sample) %>% 
+  gather(n_par, value, -n, -b_sigma, -statistic, -sample) %>% 
   spread(key = statistic, value = value) %>% 
-  mutate(N     = str_c("N = ", N) %>% factor(., levels = c("N = 20", "N = 100")),
+  mutate(n     = str_c("n = ", n) %>% factor(., levels = c("n = 20", "n = 100")),
          n_par = str_remove(n_par, "V") %>% as.double())  %>% 
   
   # now plot
@@ -813,7 +822,7 @@ s %>%
   geom_line(aes(color = sample, size = b_sigma %>% as.character())) +
   # this function contains the data from the previous simulation
   geom_point(data = dev_tibble, 
-             aes(x = n_par, y = mean, group = sample, fill = sample),
+             aes(group = sample, fill = sample),
              color = "black", shape = 21, size = 2.5, stroke = .1) +
   scale_fill_manual(values = c(carto_pal(7, "BurgYl")[7], carto_pal(7, "BurgYl")[5])) +
   scale_color_manual(values = c(carto_pal(7, "BurgYl")[7], carto_pal(7, "BurgYl")[5])) +
@@ -825,7 +834,7 @@ s %>%
         legend.position  = "none",
         strip.background = element_rect(fill = alpha(carto_pal(7, "BurgYl")[1], 1/4), color = "white"),
         panel.background = element_rect(fill = alpha(carto_pal(7, "BurgYl")[3], 1/4))) +
-  facet_wrap(~N, scale = "free_y")
+  facet_wrap(~n, scale = "free_y")
 ```
 
 Our results don’t perfectly align with those in the text. I suspect his is because we used `1e3` iterations, rather than the `1e4` of the text. If you’d like to wait all night long for the simulation to yield more stable results, be my guest.
@@ -836,9 +845,11 @@ For more on this how to choose your priors, consider Gelman, Simpson, and Betanc
 
 #### Rethinking: Ridge regression.
 
-Within the brms framework, you can do something like this with the horseshoe prior via the `horseshoe()` function. You can learn all about it from the `horseshoe` section of the [brms reference manual (version 2.5.0)](https://cran.r-project.org/web/packages/brms/brms.pdf). Here's an extract from the section:
+Within the brms framework, you can do something like this with the horseshoe prior via the `horseshoe()` function. You can learn all about it from the `horseshoe` section of the [brms reference manual (version 2.8.0)](https://cran.r-project.org/web/packages/brms/brms.pdf). Here's an extract from the section:
 
-> The horseshoe prior is a special shrinkage prior initially proposed by [Carvalho et al. (2009)](http://proceedings.mlr.press/v5/carvalho09a/carvalho09a.pdf). It is symmetric around zero with fat tails and an infinitely large spike at zero. This makes it ideal for sparse models that have many regression coefficients, although only a minority of them is nonzero. The horseshoe prior can be applied on all population-level effects at once (excluding the intercept) by using `set_prior("horseshoe(1)")`. (p. 68)
+> The horseshoe prior is a special shrinkage prior initially proposed by [Carvalho et al. (2009)](http://proceedings.mlr.press/v5/carvalho09a/carvalho09a.pdf). It is symmetric around zero with fat tails and an infinitely large spike at zero. This makes it ideal for sparse models that have many regression coefficients, although only a minority of them is non- zero. The horseshoe prior can be applied on all population-level effects at once (excluding the intercept) by using `set_prior("horseshoe(1)")`. (p. 70)
+
+And to dive even deeper into the horseshoe prior, check out Michael Betancourt's tutorial, [*Bayes Sparse Regression*](https://betanalpha.github.io/assets/case_studies/bayes_sparse_regression.html#35_the_horseshoe).
 
 ## Information criteria
 
@@ -880,7 +891,7 @@ dev_tibble  %>%
   theme(text             = element_text(family = "Courier"),
         strip.background = element_rect(fill = alpha(carto_pal(7, "BurgYl")[1], 1/4), color = "white"),
         panel.background = element_rect(fill = alpha(carto_pal(7, "BurgYl")[3], 1/4))) +
-  facet_wrap(~N, scale = "free_y")
+  facet_wrap(~n, scale = "free_y")
 ```
 
 Again, our numbers aren't the exact same as McElreath's because a) this is a simulation and b) our number of simulations was an order of magnitude smaller than his. But the overall pattern is the same. More to the point, the distances between the in- and out-of-sample points 
@@ -929,7 +940,7 @@ You'll see how to compute the WAIC in brms in just a bit.
 
 Here is how to fit the pre-WAIC model in brms.
 
-```{r b, cache = T, message = F, warning = F}
+```{r fit_b, cache = T, message = F, warning = F}
 data(cars)
 
 b <- 
@@ -938,17 +949,20 @@ b <-
       prior = c(prior(normal(0, 100), class = Intercept),
                 prior(normal(0, 10), class = b),
                 prior(uniform(0, 30), class = sigma)),
-      iter = 2000, warmup = 1000, chains = 4, cores = 4)
+      iter = 2000, warmup = 1000, chains = 4, cores = 4,
+      seed = 6)
 ```
 
+Here's the summary.
+
 ```{r}
-print(b) 
+print(b)
 ```
 
 In brms, you return the loglikelihood with `log_lik()`.
 
-```{r, results = "hide"}
-dfLL <-
+```{r, results = "hide", message = F}
+ll <-
   b %>%
   log_lik() %>%
   as_tibble()
@@ -958,7 +972,7 @@ Computing the lppd, the "Bayesian deviance", takes a bit of leg work.
 
 ```{r}
 dfmean <-
-  dfLL %>%
+  ll %>%
   exp() %>%
   summarise_all(mean) %>%
   gather(key, means) %>%
@@ -976,7 +990,7 @@ Comupting the effective number of parameters, $p_{\text{WAIC}}$, isn't much bett
 
 ```{r}
 dfvar <-
-  dfLL %>%
+  ll %>%
   summarise_all(var) %>%
   gather(key, vars) %>%
   select(vars) 
@@ -996,7 +1010,13 @@ Finally, here's what we've been working so hard for: our hand calculated WAIC va
 waic(b)
 ```
 
-Here's how we get the WAIC standard error.
+Before we move on, did you notice the `elpd_waic` row in the tibble `waic()` returned? That value is the `lppd` minus the `pwaic`, but without multiplying the result by -2. E.g., 
+
+```{r}
+lppd - pwaic
+```
+
+That tidbit will come in handy a little bit later. But for now, here's how we compute the WAIC standard error.
 
 ```{r}
 dfmean %>%
@@ -1072,7 +1092,7 @@ s %>%
   geom_line(aes(y = value, group = b_sigma, color = b_sigma)) +
   scale_color_manual(values = c(carto_pal(7, "BurgYl")[7], carto_pal(7, "BurgYl")[5])) +
   # scale_color_manual(values = c("steelblue", "black")) +
-  labs(subtitle = "N = 20",
+  labs(subtitle = "n = 20",
        x = "number of parameters",
        y = "deviance") +
   theme_classic() +
@@ -1099,7 +1119,7 @@ data(milk)
 
 d <- 
   milk %>%
-  filter(complete.cases(.))
+  drop_na(ends_with("_s"))
 rm(milk)
 
 d <-
@@ -1122,7 +1142,7 @@ library(brms)
 
 We're ready to fit the competing `kcal.per.g` models. Note our use of `update()` in the last two models.
 
-```{r b6.11_through_b6.14, cache = T, message = F, warning = F, results = 'hide'}
+```{r b6.11__b6.14, message = F, warning = F, results = 'hide'}
 inits <- list(Intercept = mean(d$kcal.per.g),
               sigma     = sd(d$kcal.per.g))
 
@@ -1134,11 +1154,14 @@ b6.11 <-
       prior = c(prior(uniform(-1000, 1000), class = Intercept),
                 prior(uniform(0, 100), class = sigma)),
       iter = 2000, warmup = 1000, chains = 4, cores = 4,
-      inits = inits_list)
+      inits = inits_list,
+      seed = 6)
 
 inits <- list(Intercept = mean(d$kcal.per.g),
               neocortex = 0,
               sigma     = sd(d$kcal.per.g))
+inits_list <-list(inits, inits, inits, inits)
+
 b6.12 <- 
   brm(data = d, family = gaussian,
       kcal.per.g ~ 1 + neocortex,
@@ -1146,11 +1169,14 @@ b6.12 <-
                 prior(uniform(-1000, 1000), class = b),
                 prior(uniform(0, 100), class = sigma)),
       iter = 2000, warmup = 1000, chains = 4, cores = 4,
-      inits = inits_list)
+      inits = inits_list,
+      seed = 6)
 
 inits <- list(Intercept   = mean(d$kcal.per.g),
               `log(mass)` = 0,
               sigma       = sd(d$kcal.per.g))
+inits_list <-list(inits, inits, inits, inits)
+
 b6.13 <-
   update(b6.12, 
          newdata = d,
@@ -1161,6 +1187,8 @@ inits <- list(Intercept   = mean(d$kcal.per.g),
               neocortex   = 0,
               `log(mass)` = 0,
               sigma       = sd(d$kcal.per.g))
+inits_list <-list(inits, inits, inits, inits)
+
 b6.14 <- 
   update(b6.13, 
          newdata = d,
@@ -1170,32 +1198,71 @@ b6.14 <-
 
 #### Comparing WAIC values.
 
-In brms, you can get a model's WAIC value with either `WAIC()` or `waic()`.
+In brms, you can get a model's WAIC value with the `waic()` function.
 
 ```{r}
-WAIC(b6.14)
-
 waic(b6.14)
 ```
 
-Note the warning messages. Statisticians have made notable advances in Bayesian information criteria since McElreath published *Statistical Rethinking*. I won’t go into detail here, but the "We recommend trying loo instead" part of the message is designed to prompt us to use a different information criteria, the Pareto smoothed importance-sampling leave-one-out cross-validation (PSIS-LOO; aka, the LOO).  In brms this is available with the `loo()` function, which you can learn more about in [this vignette](https://cran.r-project.org/web/packages/loo/vignettes/loo2-example.html) from the makers of the [loo package](https://cran.r-project.org/web/packages/loo/index.html). For now, back to the WAIC.
+Note the warning message. Statisticians have made notable advances in Bayesian information criteria since McElreath published *Statistical Rethinking*. I won’t go into detail here, but the "We recommend trying loo instead" part of the message is designed to prompt us to use a different information criteria, the Pareto smoothed importance-sampling leave-one-out cross-validation (PSIS-LOO; aka, the LOO).  In brms this is available with the `loo()` function, which you can learn more about in [this vignette](https://cran.r-project.org/web/packages/loo/vignettes/loo2-example.html) from the makers of the [loo package](https://cran.r-project.org/web/packages/loo/index.html). For now, back to the WAIC.
 
-There are two basic ways to compare WAIC values from multiple models. In the first, you add more model names into the `waic()` function.
+There are a few ways to approach information criteria within the brms framework. If all you want are the quick results for a model, just plug the name of your `brm()` fit object into the `waic()` function.
 
-```{r waic, cache = T, message = F, warning = F}
-waic(b6.11, b6.12, b6.13, b6.14)
+```{r w_b6.11, cache = T, message = F, warning = F}
+waic(b6.11)
 ```
 
-Alternatively, you first save each model's `waic()` output in its own object, and then feed to those objects into `compare_ic()`.
+The WAIC and its standard error are on the bottom row. The $p_\text{WAIC}$ and its SE are stacked atop that. And look there on the top row. Remember how we pointed out, above, that we get the WAIC by multiplying `(lppd - pwaic)` by -2? Well, if you just do the subtraction without multiplying the result by -2, you get the `elpd_waic`. File that away. It'll become important in a bit.
 
-```{r w_b6.11_throughw_b6.14, cache = T, message = F, warning = F}
-w_b6.11 <- waic(b6.11)
-w_b6.12 <- waic(b6.12)
-w_b6.13 <- waic(b6.13)
-w_b6.14 <- waic(b6.14)
+Following the version 2.8.0 update, part of the suggested workflow for using information criteria with brms (i.e., execute `?loo.brmsfit`) is to add the estimates to the `brm()` fit object itself. You do that with the `add_criterion()` function. Here's how we'd do so with `b6.11`.
 
-compare_ic(w_b6.11, w_b6.12, w_b6.13, w_b6.14)
+```{r}
+b6.11 <- add_criterion(b6.11, "waic")
 ```
+
+With that in place, here's how you'd extract the WAIC information from the fit object.
+
+```{r}
+b6.11$waic
+```
+
+*Why would I go through all that trouble?*, you might ask. Well, two reasons. First, now your WAIC information is saved with all the rest of your fit output, which can be convenient. But second, it sets you up to use the `loo_compare()` function to compare models by their information criteria. To get a sense of that workflow, here we use `add_criterion()` for the next three models. Then we’ll use `loo_compare()`.
+
+```{r w_b6.12_through_b6.14}
+# compute and save the WAIC information for the next three models
+b6.12 <- add_criterion(b6.12, "waic")
+b6.13 <- add_criterion(b6.13, "waic")
+b6.14 <- add_criterion(b6.14, "waic")
+
+# compare the WAIC estimates
+w <- loo_compare(b6.11, b6.12, b6.13, b6.14,
+                 criterion = "waic")
+
+print(w)
+```
+
+You don’t have to save those results as an object like we just did with `w`. But that’ll serve some pedagogical purposes in just a bit. So go with it. With respect to the output, notice the `elpd_diff` column and the adjacent `se_diff` column. Those are our WAIC differences. The models have been rank ordered from the lowest (i.e., `b6.14`) to the highest (i.e., `b6.12`). The scores listed are the differences of ` b6.14` minus the comparison model. Since `b6.14` is the comparison model in the top row, the values are naturally 0 (i.e., $x - x = 0$). But now here’s another critical thing to understand: Since the brms version 2.8.0 update, WAIC and LOO differences are no longer reported in the $-2 * x$ metric. Remember how we keep rehearsing that multiplying `(lppd - pwaic)` by -2 is a historic artifact associated with the frequentist chi-square test? We’ll, the makers of the loo package aren’t fans and they no longer support the conversion. 
+
+So here’s the deal. The substantive interpretations of the differences presented in an `elpd_diff` metric will be the same as if presented in a WAIC metric. But if we want to compare our `elpd_diff` results to those in the text, we will have to multiply them by -2. And also, if we want the associated standard error in the proper metric, we'll need to multiply the `se_diff` column by 2. You wouldn't multiply by -2 because that would return a negative standard error, which would be silly. Here's a quick way to do so.
+
+```{r}
+cbind(waic_diff = w[, 1] * -2,
+      se        = w[, 2] * 2)
+```
+
+One more thing. On page 198, and on many other pages to follow in the text, McElreath used the `rethinking::compare()` function to return a rich table of information about the WAIC information for several models. If we’re tricky, we can do something similar with `loo_compare`. To learn how, let's peer further into the structure of our `w` object. 
+
+```{r}
+str(w)
+```
+
+When we used `print(w)`, a few code blocks earlier, it only returned two columns. It appears we actually have eight. We can see the full output with the `simplify = F` argument.
+
+```{r}
+print(w, simplify = F)
+```
+
+The results are quite analogous to those from `rethinking::compare()`. Again, the difference estimates are in the metric of the $\text{elpd}$. But the interpretation is the same and we can convert them to the traditional information criteria metric with simple multiplication. As we'll see later, this basic workflow applies to the LOO, too.
 
 If you want to get those WAIC weights, you can use the `brms::model_weights()` function like so:
 
@@ -1219,168 +1286,21 @@ model_weights(b6.11, b6.12, b6.13, b6.14,
   knitr::kable()
 ```
 
-Our table didn't quite reproduce the table McElreath's `compare()` function returns. However, José Roberto has [provided the code](http://jroberayalas.netlify.com/post/notes-on-statistical-rethinking-chapter-6-overfitting-regularization-and-information-criteria/) that replicates McElreath's `compare()`. It gives us a new function, which he calls `compare_waic()`
+With a little `[]` subsetting and light wrangling, we can convert the contents of our `w` object to a format suitable for plotting the WAIC estimates.
 
-```{r, warning = F, message = F}
-# ... are the fitted models
-compare_waic <- function (..., sort = "WAIC", func = "WAIC") 
-{
-    mnames <- as.list(substitute(list(...)))[-1L]
-    
-    L <- list(...)
-    if (is.list(L[[1]]) && length(L) == 1) {L <- L[[1]]}
-    
-    classes <- as.character(sapply(L, class))
-    if (any(classes != classes[1])) {
-        warning("Not all model fits of same class.\nThis is usually a bad idea, because it implies they were fit by different algorithms.\nCheck yourself, before you wreck yourself.")
-    }
-    
-    nobs_list <- try(sapply(L, nobs))
-    if (any(nobs_list != nobs_list[1])) {
-        nobs_out <- paste(mnames, nobs_list, "\n")
-        nobs_out <- concat(nobs_out)
-        warning(concat("Different numbers of observations found for at least two models.\nInformation criteria only valid for comparing models fit to exactly same observations.\nNumber of observations for each model:\n", 
-                       nobs_out))
-    }
-    
-    dSE.matrix <- matrix(NA, nrow = length(L), ncol = length(L))
-    
-    if (func == "WAIC") {
-        WAIC.list <- lapply(L, function(z) WAIC(z, pointwise = TRUE))
-        
-        ### The next three lines have been augmented from Roberto's code
-        
-        p.list  <- sapply(WAIC.list, function(x) x$estimates["p_waic", "Estimate"])
-        se.list <- sapply(WAIC.list, function(x) x$estimates["waic", "SE"])
-        IC.list <- sapply(WAIC.list, function(x) x$estimates["waic", "Estimate"])
-        #mnames <- sapply(WAIC.list, function(x) x$model_name)
-        colnames(dSE.matrix) <- mnames
-        rownames(dSE.matrix) <- mnames
-        for (i in 1:(length(L) - 1)) {
-            for (j in (i + 1):length(L)) {
-                waic_ptw1 <- WAIC.list[[i]]$pointwise[ , 3]
-                waic_ptw2 <- WAIC.list[[j]]$pointwise[ , 3]
-                dSE.matrix[i, j] <- as.numeric(sqrt(length(waic_ptw1) * 
-                                                        var(waic_ptw1 - waic_ptw2)))
-                dSE.matrix[j, i] <- dSE.matrix[i, j]
-            }
-        }
-    }
-    
-    #if (!(the_func %in% c("DIC", "WAIC", "LOO"))) {
-    #    IC.list <- lapply(L, function(z) func(z))
-    #}
-    IC.list <- unlist(IC.list)
-    dIC <- IC.list - min(IC.list)
-    w.IC <- rethinking::ICweights(IC.list)
-    if (func == "WAIC") {
-        topm <- which(dIC == 0)
-        dSEcol <- dSE.matrix[, topm]
-        result <- data.frame(WAIC = IC.list, pWAIC = p.list, 
-                             dWAIC = dIC, weight = w.IC, SE = se.list, dSE = dSEcol)
-    }
-    
-    #if (!(the_func %in% c("DIC", "WAIC", "LOO"))) {
-    #    result <- data.frame(IC = IC.list, dIC = dIC, weight = w.IC)
-    #}
-    rownames(result) <- mnames
-    if (!is.null(sort)) {
-        if (sort != FALSE) {
-            if (sort == "WAIC") 
-                sort <- func
-            result <- result[order(result[[sort]]), ]
-        }
-    }
-    new("compareIC", output = result, dSE = dSE.matrix)
-}
-```
-
-Our new `compare_waic()` returns the following:
-
-```{r demo_compare_waic}
-compare_waic(b6.11, b6.12, b6.13, b6.14)
-```
-
-Without Roberto's `compare_waic()`, I'm not aware of a convenient way to plot the WAIC comparisons of brms models the way McElreath does with rethinking. However, one can get the basic comparison plot with a little data processing. It helps to examine the structure of your WAIC objects. For example:
-
-```{r}
-glimpse(w_b6.11)
-```
-
-We can index the point estimate for model `b6.11`'s WAIC as `w.b6.11$estimates["waic", "Estimate"]` and the standard error as `w.b6.11$estimates["waic", "SE"]`.
-
-```{r}
-w_b6.11$estimates["waic", "Estimate"]
-
-w_b6.11$estimates["waic", "SE"]
-```
-
-Alternatively, you could do `w.b6.11$estimates[3, 1]` and `w.b6.11$estimates[3, 2]`. But instead of indexing the elements piecemeal, we might make a function that converts `waic()$estimates` to a tidy tibble formatted towards the end of making plotting easy. We'll call the function `waic_tibble()`.
-
-```{r}
-waic_tibble <- function(...){
-  tibble(model_name = rep(waic(...)$model_name, times = 3)) %>% 
-    bind_cols(
-      waic(...)$estimates %>% 
-        data.frame() %>% 
-        rownames_to_column() %>% 
-        rename(statistic = rowname,
-               estimate  = Estimate,
-               se        = SE)
-    )
-}
-
-# for example
-waic_tibble(b6.11)
-```
-
-Now we'll use `waic_tibble()` and `bind_rows()` to make a multi-model tibble suitable for plotting the WAIC estimates.
-
-```{r, fig.width = 4.5, fig.height = 1.25}
-waic_tibble(b6.11) %>% 
-  bind_rows(
-    waic_tibble(b6.12),
-    waic_tibble(b6.13),
-    waic_tibble(b6.14)
-  ) %>% 
-  filter(statistic == "waic") %>% 
+```{r w_plot, fig.width = 4.5, fig.height = 1.25}
+w[, 7:8] %>% 
+  data.frame() %>% 
+  rownames_to_column(var = "model_name") %>% 
   
   ggplot(aes(x    = model_name, 
-             y    = estimate, 
-             ymin = estimate - se, 
-             ymax = estimate + se)) +
+             y    = waic, 
+             ymin = waic - se_waic, 
+             ymax = waic + se_waic)) +
   geom_pointrange(shape = 21, color = carto_pal(7, "BurgYl")[7], fill = carto_pal(7, "BurgYl")[5]) +
   coord_flip() +
   labs(x = NULL, y = NULL,
        title = "My custom WAIC plot") +
-  theme_classic() +
-  theme(text = element_text(family = "Courier"),
-        axis.ticks.y = element_blank(),
-        panel.background = element_rect(fill = alpha(carto_pal(7, "BurgYl")[3], 1/4)))
-```
-
-However, with Roberto's `compare_waic()`, you can simply do:
-
-```{r, fig.width = 4.5, fig.height = 2, warning = F}
-compare_waic(b6.14, b6.13, b6.12, b6.11) %>% 
-  plot()
-```
-
-That yielded a base R plot. If you're stubborn and would like to stick with ggplot2, you could do something like:
-
-```{r, fig.width = 4.5, fig.height = 1.25, warning = F, message = F}
-compare_waic(b6.11, b6.12, b6.13, b6.14)@output %>% 
-  rownames_to_column() %>% 
-  mutate(model = rowname) %>% 
-  
-  ggplot() +
-  geom_pointrange(aes(x = model, y = WAIC, 
-                      ymin = WAIC - SE, 
-                      ymax = WAIC + SE),
-                  shape = 21, color = carto_pal(7, "BurgYl")[7], fill = carto_pal(7, "BurgYl")[5]) +
-  coord_flip() +
-  labs(x = NULL, y = NULL,
-       title = "Another custom WAIC plot") +
   theme_classic() +
   theme(text             = element_text(family = "Courier"),
         axis.ticks.y     = element_blank(),
@@ -1389,49 +1309,73 @@ compare_waic(b6.11, b6.12, b6.13, b6.14)@output %>%
 
 We briefly discussed the alternative information criteria, the LOO, above. Here’s how to use it in brms.
 
-```{r, message = F, warning = F}
-LOO(b6.11)
-
+```{r loo_b6.11, message = F, warning = F}
 loo(b6.11)
 ```
 
-The Pareto $k$ values are a useful model fit diagnostic tool, which we’ll discuss later. But for now, realize that brms uses functions from the [loo package](https://cran.r-project.org/web/packages/loo/index.html) to compute its WAIC and LOO values. In addition to the vignette, above, [this vignette](https://cran.r-project.org/web/packages/loo/vignettes/loo2-weights.html) demonstrates the LOO with these very same examples from McElreath's text. And if you'd like to dive a little deeper, check out [Aki Vehtari's GPSS2017 workshop](https://www.youtube.com/watch?v=8_Su5Qo49Dg&t).
+The Pareto $k$ values are a useful model fit diagnostic tool, which we’ll discuss later. But for now, realize that brms uses functions from the [loo package](https://cran.r-project.org/web/packages/loo/index.html) to compute its WAIC and LOO values. In addition to the vignette, above, [this vignette](https://cran.r-project.org/web/packages/loo/vignettes/loo2-weights.html) demonstrates the LOO with these very same examples from McElreath's text. And if you'd like to dive a little deeper, check out [Aki Vehtari's GPSS2017 workshop](https://www.youtube.com/watch?v=8_Su5Qo49Dg&t) or his talk from November 2018, [*Model assessment, selection and averaging*](https://www.youtube.com/watch?v=Re-2yVd0Mqk).
+
+Let's get back on track with the text. To put all this model comparison in perspective, 
+
+> in this analysis, the best model has more than 90% of the model weight. That's pretty good. But with only 12 cases, the error on the WAIC estimate is substantial, and of course that uncertainty should propagate to the Akaike weights. So don't get too excited. If we take the standard error of the difference from the [`loo_compare()`] table literally, you can think of the difference as a Gaussian distribution centered (for the difference between models [`b6.14` and `b6.11`]) on [`r round(w[4, 1] * -2, 2)`] with a standard deviation of [`r round(w[4, 2] * 2, 2)`]. (p. 200)
+
+Here are those two values in the $\text{elpd}$ metric.
+
+```{r elpd_diff}
+w[4, 1:2]
+```
+
+And here we convert them to the WAIC metric.
+
+```{r round_waic_diff}
+round(w[4, 1] * -2, 2)
+round(w[4, 2] * 2, 2)
+```
+
+If it's easier to see, here's the same information in a tibble.
+
+```{r elpd_to_waic_tibble}
+tibble(value             = c("difference", "se"),
+       elpd              = w[4, 1:2],
+       conversion_factor = c(-2, 2)) %>% 
+  mutate(waic            = elpd * conversion_factor)
+```
 
 Before we forget, McElreath gave some perspective difference between the models with the highest and lowest WAIC values (p. 200).
 
-```{r}
-(w_d <- waic(b6.11, b6.14))
-```
+But to the point, we can extract the two numerals and plug them into `rnorm()`.
 
-If you use `str()` to look at the structure of our `w_d` object, you'll see we can subset to the difference score portion with `w_d$ic_diffs__`. And since `w_d$ic_diffs__` is a numeric vector, we can extract the two numerals with the `[]` notation.
+```{r plug_waic_diff_into_rnorm}
+# how many draws would you like?
+n <- 1e5
 
-```{r}
-set.seed(6.26)
+set.seed(6)
 
+# simulate
 diff <-
-  tibble(diff = rnorm(1e5 , 
-                      mean = w_d$ic_diffs__[1], 
-                      sd   = w_d$ic_diffs__[2]))
+  tibble(diff = rnorm(n, 
+                      mean = w[4, 1] * -2, 
+                      sd   = w[4, 2] *  2))
 
 diff %>% 
-  summarise(the_probability_a_difference_is_negative = sum(diff < 0) / n())
+  summarise(the_probability_a_difference_is_negative = sum(diff < 0) / n)
 ```
 
 In case you're curious, this is a graphic version of what we just did.
 
-```{r, fig.width = 3, fig.height = 2.25}
-ggplot(data = tibble(diff = -20:30),
-       aes(x = diff)) +
-  geom_ribbon(aes(ymin = 0, ymax = dnorm(diff, w_d$ic_diffs__[1], w_d$ic_diffs__[2])),
+```{r plot_WAIC_diff, fig.width = 3, fig.height = 2.25}
+tibble(diff = -20:30) %>% 
+  ggplot(aes(x = diff, ymin = 0)) +
+  geom_ribbon(aes(ymax = dnorm(diff, w[4, 1] * -2, w[4, 2] * 2)),
               fill = carto_pal(7, "BurgYl")[7]) +
   geom_ribbon(data = tibble(diff = -20:0),
-              aes(ymin = 0, ymax = dnorm(diff, w_d$ic_diffs__[1], w_d$ic_diffs__[2])),
+              aes(ymax = dnorm(diff, w[4, 1] * -2, w[4, 2] * 2)),
               fill = carto_pal(7, "BurgYl")[5]) + 
   geom_vline(xintercept = 0, linetype = 3,
              color = carto_pal(7, "BurgYl")[3]) +
   scale_y_continuous(NULL, breaks = NULL) +
   theme_classic() +
-  theme(text = element_text(family = "Courier"),
+  theme(text             = element_text(family = "Courier"),
         panel.background = element_rect(fill = alpha(carto_pal(7, "BurgYl")[3], 1/4)))
 ```
 
@@ -1439,22 +1383,19 @@ ggplot(data = tibble(diff = -20:30),
 
 The brms package doesn't have anything like rethinking's `coeftab()` function. However, one can get that information with a little ingenuity. Here we'll employ the `broom::tidy()` function, which will save the summary statistics for our model parameters. For example, this is what it will produce for the full model, `b6.14`.
 
-```{r}
+```{r tidy_b6.14}
 tidy(b6.14)
 ```
 
-Note, `tidy()` also grabs the log posterior (i.e., "lp__"), which we'll exclude for our purposes. With a `rbind()` and a little indexing, we can save the summaries for all four models in a single tibble.
+Note, `tidy()` also grabs the log posterior (i.e., `lp__`), which we'll exclude for our purposes. With a little `purrr::map()` code, you can save the `brm()` fits and their `tidy()` summaries into a nested tibble, and then `unnest()` the tibble for `coeftab()`-like use.
 
-```{r}
+```{r my_coef_tab}
 my_coef_tab <-
-  rbind(tidy(b6.11), tidy(b6.12), tidy(b6.13), tidy(b6.14)) %>%
-  mutate(model = c(rep("b6.11", times = nrow(tidy(b6.11))),
-                   rep("b6.12", times = nrow(tidy(b6.12))),
-                   rep("b6.13", times = nrow(tidy(b6.13))),
-                   rep("b6.14", times = nrow(tidy(b6.14))))
-         ) %>%
-  filter(term != "lp__") %>%
-  select(model, everything())
+  tibble(model = c("b6.11", "b6.12", "b6.13", "b6.14")) %>% 
+  mutate(fit   = purrr::map(model, get)) %>% 
+  mutate(tidy  = purrr::map(fit, tidy)) %>% 
+  unnest(tidy) %>% 
+  filter(term != "lp__")
 
 head(my_coef_tab)
 ```
@@ -1463,7 +1404,7 @@ Just a little more work and we'll have a table analogous to the one McElreath pr
 
 ```{r}
 my_coef_tab %>%
-  # Learn more about dplyr::complete() here: https://rdrr.io/cran/tidyr/man/expand.html
+  # learn more about `dplyr::complete()` here: https://rdrr.io/cran/tidyr/man/expand.html
   complete(term = distinct(., term), model) %>%
   select(model, term, estimate) %>%
   mutate(estimate = round(estimate, digits = 2)) %>%
@@ -1472,54 +1413,9 @@ my_coef_tab %>%
 
 I'm also not aware of an efficient way in brms to reproduce Figure 6.12 for which McElreath nested his `coeftab()` argument in a `plot()` argument. However, one can build something similar by hand with a little data wrangling.
 
-```{r, fig.width = 4, fig.height = 3, warning = F}
-p11 <- posterior_samples(b6.11)
-p12 <- posterior_samples(b6.12)
-p13 <- posterior_samples(b6.13)
-p14 <- posterior_samples(b6.14)
-
-# This block is just for intermediary information
-# colnames(p11)
-# colnames(p12)
-# colnames(p13)
-# colnames(p14)
-
-# Here we put it all together
-tibble(mdn = c(NA, median(p11[, 1]), median(p12[, 1]), median(p13[, 1]), median(p14[, 1]),
-               NA, NA, median(p12[, 2]), NA, median(p14[, 2]),
-               NA, median(p11[, 2]), NA, median(p13[, 2]), NA,
-               NA, median(p11[, 2]), median(p12[, 3]), median(p13[, 3]), median(p14[, 4])),
-       sd  = c(NA, sd(p11[, 1]), sd(p12[, 1]), sd(p13[, 1]), sd(p14[, 1]),
-               NA, NA, sd(p12[, 2]), NA, sd(p14[, 2]),
-               NA, sd(p11[, 2]), NA, sd(p13[, 2]), NA,
-               NA, sd(p11[, 2]), sd(p12[, 3]), sd(p13[, 3]), sd(p14[, 4])),
-       order = c(20:1)) %>%
-  
-  ggplot(aes(x = mdn, y = order)) +
-  geom_hline(yintercept = 0, color = carto_pal(7, "BurgYl")[2]) +
-  geom_pointrange(aes(x = order, y = mdn, 
-                      ymin = mdn - sd, 
-                      ymax = mdn + sd),
-                  shape = 21, color = carto_pal(7, "BurgYl")[7], fill = carto_pal(7, "BurgYl")[5]) +
-  scale_x_continuous(breaks = 20:1,
-                     labels = c("intercept", 11:14,
-                                "neocortex", 11:14,
-                                "logmass",   11:14,
-                                "sigma",     11:14)) +
-  coord_flip() +
-  labs(x = NULL, y = NULL,
-       title = "My custom coeftab() plot") +
-  theme_classic() +
-  theme(text             = element_text(family = "Courier"),
-        axis.ticks.y     = element_blank(),
-        panel.background = element_rect(fill = alpha(carto_pal(7, "BurgYl")[3], 1/4)))
-```
-
-Making that plot entailed a lot of hand typing values in the tibble, which just begs for human error. If possible, it's better to use functions in a principled way to produce the results. Below is such an attempt.
-
 ```{r, message = F, warning = F, fig.height = 3, fig.width = 4}
 # data wrangling
-my_coef_tab <-
+wrangled_my_coef_tab <-
   my_coef_tab %>%
   complete(term = distinct(., term), model) %>%
   rbind(
@@ -1538,7 +1434,7 @@ my_coef_tab <-
          axis = ifelse(str_detect(axis, "b6."), str_c("      ", axis), axis))
   
 # plot
-ggplot(data = my_coef_tab,
+ggplot(data = wrangled_my_coef_tab,
        aes(x = axis_order,
            y = estimate,
            ymin = lower,
@@ -1546,7 +1442,7 @@ ggplot(data = my_coef_tab,
   theme_classic() +
   geom_hline(yintercept = 0,  color = carto_pal(7, "BurgYl")[2]) +
   geom_pointrange(shape = 21, color = carto_pal(7, "BurgYl")[7], fill = carto_pal(7, "BurgYl")[5]) +
-  scale_x_discrete(NULL, labels = my_coef_tab$axis) +
+  scale_x_discrete(NULL, labels = wrangled_my_coef_tab$axis) +
   ggtitle("My other coeftab() plot") +
   coord_flip() +
   theme(text         = element_text(family = "Courier"),
@@ -1556,7 +1452,26 @@ ggplot(data = my_coef_tab,
         panel.background = element_rect(fill = alpha(carto_pal(7, "BurgYl")[3], 1/4)))
 ```
 
-I'm sure there are better ways to do this. Have at it--but do [share you code](https://github.com/ASKurz/Statistical_Rethinking_with_brms_ggplot2_and_the_tidyverse/issues) when you figure it out.
+However, if you’re willing to deviate just a bit from the format of McElreath’s `coeftab()` plot, here’s a more elegant way to work with our `my_coef_tab` tibble.
+
+```{r, message = F, warning = F, fig.height = 3.5, fig.width = 4}
+my_coef_tab %>% 
+  
+  ggplot(aes(x = model, y = estimate, ymin = lower, ymax = upper)) +
+  geom_hline(yintercept = 0,  color = carto_pal(7, "BurgYl")[2]) +
+  geom_pointrange(shape = 21, color = carto_pal(7, "BurgYl")[7], fill = carto_pal(7, "BurgYl")[5]) +
+  labs(x = NULL,
+       y = NULL) +
+  coord_flip() +
+  theme_classic() +
+  theme(text         = element_text(family = "Courier"),
+        panel.grid   = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.text.y  = element_text(hjust = 0),
+        panel.background = element_rect(fill = alpha(carto_pal(7, "BurgYl")[3], 1/4)),
+        strip.background = element_rect(color = "transparent")) +
+  facet_wrap(~term, ncol = 1)
+```
 
 #### Rethinking: Barplots suck.
 
@@ -1570,10 +1485,10 @@ Within the current brms framework, you can do model-averaged predictions with th
 # we need new data for both the `fitted()` and `pp_average()` functions
 nd <- 
   tibble(neocortex = seq(from = .5, to = .8, length.out = 30),
-         mass      = rep(4.5, times = 30))
+         mass      = 4.5)
 
 # we'll get the `b6.14`-implied trajectory with `fitted()`
-fitd_b6.14 <-
+f <-
   fitted(b6.14, newdata = nd) %>%
   as_tibble() %>%
   bind_cols(nd)
@@ -1591,11 +1506,11 @@ pp_average(b6.11, b6.12, b6.13, b6.14,
   geom_ribbon(aes(ymin = Q2.5, ymax = Q97.5), 
               fill  = carto_pal(7, "BurgYl")[6], alpha = 1/4) +
   geom_line(color   = carto_pal(7, "BurgYl")[6]) +
-  geom_ribbon(data  = fitd_b6.14, aes(ymin = Q2.5, ymax = Q97.5),
+  geom_ribbon(data  = f, aes(ymin = Q2.5, ymax = Q97.5),
               color = carto_pal(7, "BurgYl")[5], fill = "transparent", linetype = 2) +
-  geom_line(data = fitd_b6.14,
+  geom_line(data = f,
               color = carto_pal(7, "BurgYl")[5], linetype = 2) +
-  geom_point(data = d, aes(x = neocortex, y = kcal.per.g), 
+  geom_point(data = d, aes(y = kcal.per.g), 
              size = 2, color = carto_pal(7, "BurgYl")[7]) +
   labs(y = "kcal.per.g") +
   coord_cartesian(xlim = range(d$neocortex), 
@@ -1638,24 +1553,24 @@ r2_b6.13 %>%
 If you want to use these in ggplot2, you’ll need to put them in tibbles or data frames. Here we do so for two of our model fits.
 
 ```{r, fig.width = 3.5, fig.height = 3}
-# model b6.13
+# model `b6.13`
 r2_b6.13 <- 
   bayes_R2(b6.13, summary = F) %>%
   as_tibble() %>%
   rename(r2_13 = R2)
 
-# model b6.14
+# model `b6.14`
 r2_b6.14 <- 
   bayes_R2(b6.14, summary = F) %>%
   as_tibble() %>%
   rename(r2_14 = R2)
 
-# Let's put them in the same data object
+# let's put them in the same data object
 r2_combined <-
   bind_cols(r2_b6.13, r2_b6.14) %>%
   mutate(dif = r2_14 - r2_13)
 
-# Plot their densities
+# plot their densities
 r2_combined %>%
   ggplot() +
   geom_density(aes(x = r2_13),
@@ -1688,7 +1603,7 @@ r2_combined %>%
         panel.background = element_rect(fill = alpha(carto_pal(7, "BurgYl")[3], 1/4)))
 ```
 
-The brms package did not get these $R^2$ values by traditional method used in, say, ordinary least squares estimation. To learn more about how the Bayesian $R^2$ sausage is made, check out the paper by [Gelman, Goodrich, Gabry, and Ali](https://github.com/jgabry/bayes_R2/blob/master/bayes_R2.pdf).
+The brms package did not get these $R^2$ values by traditional method used in, say, ordinary least squares estimation. To learn more about how the Bayesian $R^2$ sausage is made, check out the paper by [Gelman, Goodrich, Gabry, and Vehtari](https://www.tandfonline.com/doi/abs/10.1080/00031305.2018.1549100?journalCode=utas20).
 
 ## Reference {-}
 
@@ -1701,7 +1616,7 @@ sessionInfo()
 ```
 
 ```{r, echo = F}
-rm(d, fit_lm, fits, p, p1, p2, p3, p4, p5, p6, b6.7, nd, make_lines, lines, weatherperson, newcomer, t, inits, inits_list, b6.8, dfLL, kseq, n_sim, n_cores, dev_20, dev_100, dev_tibble, dev_text, s, b, dfmean, lppd, dfvar, pwaic, b6.11, b6.12, b6.13, b6.14, w_b6.11, w_b6.12, w_b6.13, w_b6.14, compare_waic, waic_tibble, w_d, diff, my_coef_tab, p11, p12, p13, p14, fitd_b6.14, r2_b6.13, r2_b6.14, r2_combined)
+rm(d, fit_lm, fits, p, p1, p2, p3, p4, p5, p6, b6.7, nd, make_lines, lines, weatherperson, newcomer, t, inits, inits_list, b6.8, ll, kseq, n_sim, n_cores, dev_20, dev_100, dev_tibble, dev_text, s, b, dfmean, lppd, dfvar, pwaic, b6.11, b6.12, b6.13, b6.14, w, n, diff, my_coef_tab, wrangled_my_coef_tab, f, r2_b6.13, r2_b6.14, r2_combined)
 ```
 
 ```{r, echo = F, message = F, warning = F, results = "hide"}
@@ -1711,3 +1626,4 @@ ggplot2::theme_set(ggplot2::theme_grey())
 
 bayesplot::color_scheme_set("blue")
 ```
+
